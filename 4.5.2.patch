@@ -1,0 +1,84 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import type { Options } from 'storybook/internal/types';
+
+const reactPlugin = { name: 'mock-react-plugin' };
+const configTypes = ['DEVELOPMENT', 'PRODUCTION'] as const;
+
+vi.mock('@storybook/react-vite/node', () => ({
+  defineMain: <T>(config: T) => config,
+}));
+
+vi.mock('@vitejs/plugin-react', () => ({
+  default: vi.fn(() => reactPlugin),
+}));
+
+const originalCI = process.env.CI;
+
+const loadViteFinal = async () => {
+  const { default: mainConfig } = await import('../../../.storybook/main.ts');
+
+  return mainConfig.viteFinal!;
+};
+
+const runViteFinal = async (configType: 'DEVELOPMENT' | 'PRODUCTION', ci?: string) => {
+  if (ci === undefined) {
+    delete process.env.CI;
+  } else {
+    process.env.CI = ci;
+  }
+
+  const viteFinal = await loadViteFinal();
+  return viteFinal({}, { configType } as Options);
+};
+
+afterEach(() => {
+  if (originalCI === undefined) {
+    delete process.env.CI;
+  } else {
+    process.env.CI = originalCI;
+  }
+  vi.resetModules();
+});
+
+describe('code/.storybook main viteFinal', () => {
+  it('adds development-only Storybook aliases in DEVELOPMENT mode', async () => {
+    const config = await runViteFinal('DEVELOPMENT');
+    const alias = config.resolve?.alias as Record<string, string>;
+
+    expect(alias['storybook/manager-api']).toContain('/core/src/manager-api/index.mock.ts');
+    expect(alias['storybook/internal/components']).toContain('/core/src/components/index.ts');
+    expect(alias['storybook/theming']).toContain('/core/src/theming/index.ts');
+    expect(alias['storybook/theming/create']).toContain('/core/src/theming/create.ts');
+    expect(alias['sb-original/image-context']).toContain('/frameworks/nextjs/src/image-context.ts');
+  });
+
+  it('does not add development-only Storybook aliases in PRODUCTION mode', async () => {
+    const config = await runViteFinal('PRODUCTION');
+    const alias = config.resolve?.alias as Record<string, string>;
+
+    expect(alias['storybook/manager-api']).toContain('/core/src/manager-api/index.mock.ts');
+    expect(alias).not.toHaveProperty('storybook/internal/components');
+    expect(alias).not.toHaveProperty('storybook/theming');
+    expect(alias).not.toHaveProperty('storybook/theming/create');
+    expect(alias).not.toHaveProperty('sb-original/image-context');
+  });
+
+  it.each(configTypes)(
+    'sets build.sourcemap to true when CI is not true in %s mode',
+    async (configType: (typeof configTypes)[number]) => {
+      const config = await runViteFinal(configType);
+
+      expect(config.build?.sourcemap).toBe(true);
+    }
+  );
+
+  it.each(configTypes)(
+    'sets build.sourcemap to false when CI=true in %s mode',
+    async (configType: (typeof configTypes)[number]) => {
+      const config = await runViteFinal(configType, 'true');
+
+      expect(config.build?.sourcemap).toBe(false);
+    }
+  );
+});
