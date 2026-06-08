@@ -3,21 +3,21 @@ import { fileURLToPath } from 'node:url';
 
 import { defineMain } from '@storybook/react-vite/node';
 import type { Options } from 'storybook/internal/types';
+import type { Options } from 'storybook/internal/types';
 
-import react from '@vitejs/plugin-react';
 import type { InlineConfig } from 'vite';
 
 import { BROWSER_TARGETS } from '../core/src/shared/constants/environments-support.ts';
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = dirname(currentFilePath);
-
-const componentsPath = join(currentDirPath, '../core/src/components/index.ts');
-const managerApiPath = join(currentDirPath, '../core/src/manager-api/index.mock.ts');
-const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
 const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
 const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
 
+const config = defineMain({
+  stories: [
+    './bench/*.stories.@(js|jsx|ts|tsx)',
+    {
 const config = defineMain({
   stories: [
     './bench/*.stories.@(js|jsx|ts|tsx)',
@@ -114,11 +114,6 @@ const config = defineMain({
       files: 'stories.tsx',
     },
   ],
-  addons: [
-    '@storybook/addon-onboarding',
-    '@storybook/addon-themes',
-    '@storybook/addon-docs',
-    '@storybook/addon-designs',
     '@storybook/addon-vitest',
     '@storybook/addon-a11y',
     '@storybook/addon-mcp',
@@ -131,12 +126,29 @@ const config = defineMain({
     './renderers/react/template/components/index.js',
   ],
   build: {
+  previewAnnotations: [
+    './core/template/stories/preview.ts',
+    './renderers/react/template/components/index.js',
+  ],
     test: {
+      // we have stories for the blocks here, we can't exclude them
       // we have stories for the blocks here, we can't exclude them
       disableBlocks: false,
       // some stories in blocks (ArgTypes, Controls) depends on argTypes inference
+      // some stories in blocks (ArgTypes, Controls) depends on argTypes inference
       disableDocgen: false,
     },
+  framework: {
+    name: '@storybook/react-vite',
+    options: {},
+  },
+  refs: {
+    icons: {
+      title: 'Icons',
+      url: 'https://main--64b56e737c0aeefed9d5e675.chromatic.com',
+      expanded: false,
+    },
+  },
   },
   framework: {
     name: '@storybook/react-vite',
@@ -149,37 +161,6 @@ const config = defineMain({
       expanded: false,
     },
   },
-  core: {
-    disableTelemetry: true,
-    changeDetection: true,
-  },
-  features: {
-    developmentModeForBuild: true,
-    experimentalTestSyntax: true,
-    experimentalDocgenServer: true,
-    experimentalReactComponentMeta: true,
-    changeDetection: true,
-  },
-  staticDirs: [{ from: './bench/bundle-analyzer', to: '/bundle-analyzer' }],
-  viteFinal: async (viteConfig: InlineConfig, { configType }: Options) => {
-    const { mergeConfig } = await import('vite');
-
-    return mergeConfig(viteConfig, {
-      resolve: {
-        alias:
-          configType === 'DEVELOPMENT'
-            ? {
-                'storybook/internal/components': componentsPath,
-                'storybook/manager-api': managerApiPath,
-                'storybook/theming/create': themingCreatePath,
-                'storybook/theming': themingPath,
-                'sb-original/image-context': imageContextPath,
-              }
-            : {
-                'storybook/manager-api': managerApiPath,
-              },
-      },
-      plugins: [react()],
       build: {
         // disable sourcemaps in CI to not run out of memory
         sourcemap: process.env.CI !== 'true',
@@ -196,3 +177,4 @@ const config = defineMain({
 });
 
 export default config;
+        // disable sourcemaps in CI to not run out of memory
