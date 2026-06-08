@@ -25,9 +25,6 @@ export async function createViteServer(options: Options, devServer: Server) {
       fs: {
         strict: true,
       },
-    },
-    appType: 'custom' as const,
-  };
 
   // '0.0.0.0' binds to all interfaces, which is useful for Docker and other containerized environments
   if (
