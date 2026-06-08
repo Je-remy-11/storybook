@@ -10,7 +10,7 @@ export function watchConfig(
 ) {
   const wp = new Watchpack({
     followSymlinks: false,
-    ignored: ['**/.git', '**/node_modules'],
+    ignored: ['**/.git', '**/node_modules', '**/.nx/cache/**', '**/tsconfig.json'],
   });
 
   wp.watch({

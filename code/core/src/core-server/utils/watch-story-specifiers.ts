@@ -55,7 +55,7 @@ export function watchStorySpecifiers(
   const wp = new Watchpack({
     // poll: true, // Slow!!! Enable only in special cases
     followSymlinks: false,
-    ignored: ['**/.git', '**/node_modules'],
+    ignored: ['**/.git', '**/node_modules', '**/.nx/cache/**', '**/tsconfig.json'],
   });
   wp.watch({ files, directories });
 
