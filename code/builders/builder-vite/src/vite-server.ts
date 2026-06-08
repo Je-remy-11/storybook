@@ -12,24 +12,31 @@ export async function createViteServer(options: Options, devServer: Server) {
   const commonCfg = await commonConfig(options, 'development');
 
   const { allowedHosts } = await presets.apply('core', {});
+  const existingServerConfig = commonCfg.server ?? {};
+  const existingHmrConfig =
+    typeof existingServerConfig.hmr === 'object' && existingServerConfig.hmr !== null
+      ? existingServerConfig.hmr
+      : undefined;
 
   const config: InlineConfig & { server: ServerOptions } = {
     ...commonCfg,
     server: {
+      ...existingServerConfig,
       allowedHosts,
       middlewareMode: true,
       hmr: {
+        ...existingHmrConfig,
         port: options.port,
         server: devServer,
       },
       fs: {
+        ...existingServerConfig.fs,
         strict: true,
       },
     },
     appType: 'custom' as const,
   };
 
-  // '0.0.0.0' binds to all interfaces, which is useful for Docker and other containerized environments
   if (
     options.host === '0.0.0.0' &&
     (!allowedHosts || (Array.isArray(allowedHosts) && allowedHosts.length === 0))
