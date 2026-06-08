@@ -1,0 +1,68 @@
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)', '../src/**/*.mdx'],
+  addons: [
+    '@storybook/addon-links',
+    '@storybook/addon-essentials',
+    '@storybook/addon-interactions',
+    '@storybook/addon-storysource',
+    '@storybook/addon-actions',
+  ],
+  framework: {
+    name: '@storybook/react-vite',
+    options: {},
+  },
+  docs: {
+    autodocs: 'tag',
+  },
+  
+  // 修复：使用 viteFinal 钩子正确配置 ignore 规则
+  async viteFinal(config) {
+    // 确保 server.watch 配置存在
+    config.server = config.server || {};
+    config.server.watch = config.server.watch || {};
+    
+    // 获取现有的忽略规则（如果有的话）
+    let existingIgnored: any[] = [];
+    if (Array.isArray(config.server.watch.ignored)) {
+      existingIgnored = [...config.server.watch.ignored];
+    } else if (config.server.watch.ignored) {
+      existingIgnored = [config.server.watch.ignored];
+    }
+    
+    // 设置新的忽略规则，包含多种匹配方式确保全面
+    config.server.watch.ignored = [
+      ...existingIgnored,
+      
+      // 忽略 NX 缓存
+      '**/.nx/cache/**',
+      
+      // 忽略所有 tsconfig 文件（多种写法以确保全面覆盖）
+      '**/tsconfig*.json',
+      '**/tsconfig-*.json',
+      '**/tsconfig/**.json',
+      
+      // 函数式忽略规则，作为后备
+      (path) => {
+        if (typeof path !== 'string') return false;
+        return (
+          path.includes('.nx/cache') || 
+          path.includes('tsconfig')
+        );
+      }
+    ];
+    
+    // 可选：如果需要防止 Vite 完全因为配置文件变化而重新加载
+    // config.server.hmr = config.server.hmr || {};
+    // config.server.hmr.clientPort = 443; // 示例设置
+    
+    console.log('✅ Vite watch ignore config updated:', {
+      ignored: config.server.watch.ignored
+    });
+    
+    return config;
+  },
+};
+
+export default config;
