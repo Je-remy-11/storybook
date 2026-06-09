@@ -1,6 +1,10 @@
 import { resolve } from 'node:path';
 
-import { getBuilderOptions, resolvePathInStorybookCache } from 'storybook/internal/common';
+import {
+  getBrowserTargets,
+  getBuilderOptions,
+  resolvePathInStorybookCache,
+} from 'storybook/internal/common';
 import type { Options } from 'storybook/internal/types';
 
 import type {
@@ -34,7 +38,6 @@ const configEnvBuild: ConfigEnv = {
   isSsrBuild: false,
 };
 
-// Vite config that is common to development and production mode
 export async function commonConfig(
   options: Options,
   _type: PluginConfigType
@@ -46,9 +49,6 @@ export async function commonConfig(
 
   const projectRoot = resolve(options.configDir, '..');
 
-  // I destructure away the `build` property from the user's config object
-  // I do this because I can contain config that breaks storybook, such as we had in a lit project.
-  // If the user needs to configure the `build` they need to do so in the viteFinal function in main.js.
   const { config: { build: buildProperty = undefined, ...userConfig } = {} } =
     (await loadConfigFromFile(
       configEnv,
@@ -59,23 +59,21 @@ export async function commonConfig(
       configLoader
     )) ?? {};
 
-  // Storybook's Vite config is assembled from self-contained plugins.
-  // The config plugin handles base settings (root, cacheDir, resolve conditions, etc.),
-  // while other plugins handle entry points, docgen, and runtime globals.
-  // Shared vite plugins for mocking are defined in `./preset.ts` so that they can be
-  // shared between @storybook/builder-vite and @storybook/addon-vitest.
+  const buildTarget =
+    _type === 'build'
+      ? getBrowserTargets({ defaultTargets: buildProperty?.target })
+      : buildProperty?.target;
+
   const sbConfig: InlineConfig = {
     configFile: false,
     plugins: await pluginConfig(options),
     root: projectRoot,
-    // Allow storybook deployed as subfolder. See https://github.com/storybookjs/builder-vite/issues/238
     base: './',
     ...(options.cacheKey
       ? { cacheDir: resolvePathInStorybookCache('sb-vite', options.cacheKey) }
       : {}),
-    // Pass build.target option from user's vite config
     build: {
-      target: buildProperty?.target,
+      target: buildTarget,
     },
   };
 
@@ -84,17 +82,29 @@ export async function commonConfig(
   return config;
 }
 
-export async function pluginConfig(options: Options) {
-  const plugins = [
-    // Shared core plugins (resolve conditions, envPrefix, fs.allow, externals, env vars, etc.)
-    ...(await corePlugins([], options)),
-    await storybookExternalGlobalsPlugin(options),
-    await csfPlugin(options),
-    // Entry plugin: virtual modules for stories, addon setup, and main app entry
-    ...(await storybookEntryPlugin(options)),
-    // Builder-specific: webpack-compatible stats for turbosnap/chromatic
-    pluginWebpackStats({ workingDir: process.cwd() }),
-  ] as PluginOption[];
+export async function pluginConfig(options: Options): Promise<PluginOption[]> {
+  const frameworkName = await options.presets.apply('framework');
 
-  return plugins;
+  return [
+    await csfPlugin(options),
+    await injectExportOrderPlugin(options),
+    await pluginWebpackStats(options),
+    await storybookEntryPlugin(options),
+    await externalGlobalsPlugin(options),
+    ...(await corePlugins(options)),
+  ];
+}
+
+async function injectExportOrderPlugin(options: Options): Promise<PluginOption> {
+  const { injectExportOrderPlugin } = await import('storybook/internal/csf-tools');
+  return injectExportOrderPlugin({
+    storyStoreV7: options.features?.legacyMdx1 !== true,
+  });
+}
+
+async function externalGlobalsPlugin(options: Options): Promise<PluginOption> {
+  return storybookExternalGlobalsPlugin({
+    ...options,
+    globals: await options.presets.apply<Record<string, string>>('globals'),
+  });
 }

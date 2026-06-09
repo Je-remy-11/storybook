@@ -10,9 +10,6 @@ import sirv from 'sirv';
 
 import { globalsModuleInfoMap } from '../manager/globals/globals-module-info.ts';
 import { BROWSER_TARGETS, SUPPORTED_FEATURES } from '../shared/constants/environments-support.ts';
-import { resolvePackageDir } from '../shared/utils/module.ts';
-import type {
-  BuilderBuildResult,
   BuilderFunction,
   BuilderStartResult,
   Compilation,
@@ -82,7 +79,7 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
     target: BROWSER_TARGETS,
     supported: SUPPORTED_FEATURES,
     platform: 'browser',
-    bundle: true,
+    target: BROWSER_TARGETS,
     minify: false,
     minifyWhitespace: false,
     minifyIdentifiers: false,

@@ -51,6 +51,11 @@ export * from './utils/get-addon-names.ts';
 export * from './utils/utils.ts';
 export * from './utils/command.ts';
 export * from './node-version.ts';
+export {
+  BROWSER_TARGETS_OVERRIDE_ENV,
+  getBrowserTargets,
+  parseBrowserTargetsOverride,
+} from '../shared/constants/environments-support.ts';
 
 export { versions };
 

@@ -13,7 +13,7 @@ import { globalsModuleInfoMap } from '../../../code/core/src/manager/globals/glo
 import {
   BROWSER_TARGETS,
   NODE_TARGET,
-  SUPPORTED_FEATURES,
+  BROWSER_TARGETS,
 } from '../../../code/core/src/shared/constants/environments-support';
 import { resolvePackageDir } from '../../../code/core/src/shared/utils/module';
 import {
