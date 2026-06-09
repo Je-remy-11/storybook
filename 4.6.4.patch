@@ -1,0 +1,234 @@
+#!/usr/bin/env node
+
+/**
+ * add-addon.mjs — 向 Storybook main.ts 的 addons 数组中插入一个新条目。
+ *
+ * 规则：
+ *   1. 若 addon 已存在则跳过（不重复添加）。
+ *   2. 默认插入在 `./services-preset.ts` 之前（哨兵策略）。
+ *   3. 若找不到哨兵，则追加到 addons 数组末尾。
+ *   4. 自动继承相邻行的缩进，不破坏原有格式和注释。
+ *   5. 零外部依赖，仅使用 Node.js 内建的 fs / path。
+ *
+ * 用法：
+ *   node scripts/add-addon.mjs <main.ts 路径> <addon 名称> [--sentinel <哨兵字符串>] [--dry-run]
+ *
+ * 示例：
+ *   # 插入 @storybook/addon-interactions，在 ./services-preset.ts 之前
+ *   node scripts/add-addon.mjs code/.storybook/main.ts '@storybook/addon-interactions'
+ *
+ *   # 指定其他哨兵（如最后的本地 preset 文件）
+ *   node scripts/add-addon.mjs code/.storybook/main.ts '@storybook/addon-links' --sentinel './my-preset.ts'
+ *
+ *   # 先预览，不实际写入
+ *   node scripts/add-addon.mjs code/.storybook/main.ts '@storybook/addon-interactions' --dry-run
+ */
+
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// ── 工具函数 ──────────────────────────────────────────────────────────
+
+/**
+ * 对正则特殊字符做转义，保证字符串能安全放入 new RegExp()。
+ */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 检查 addon 是否已存在于文件内容中（按完整字符串匹配）。
+ * 同时兼容 `'<name>'`、`"<name>"` 两种引号形式。
+ */
+function addonExists(content, addonName) {
+  const escaped = escapeRegex(addonName);
+  const pattern = new RegExp(`['"]${escaped}['"]`);
+  return pattern.test(content);
+}
+
+/**
+ * 在 content 中查找 sentinel（带引号的字符串），返回匹配信息：
+ *   { index, indent, line }  或  null
+ *
+ * indent：该行开头的空白字符（用于保持插入项的缩进一致）。
+ * line：匹配到的完整行内容。
+ */
+function findSentinel(content, sentinel) {
+  const escaped = escapeRegex(sentinel);
+  // 匹配 sentinel 所在的整行，捕获行首缩进
+  const regex = new RegExp(`^(\\s*)['"]${escaped}['"],?\\s*$`, 'gm');
+  const match = regex.exec(content);
+  if (!match) return null;
+
+  return {
+    index: match.index,
+    indent: match[1],
+    line: match[0],
+  };
+}
+
+/**
+ * 在 addons 数组末尾追加一项（当哨兵不存在时的降级策略）。
+ * 查找 `]` 作为数组闭合标记，在其前插入。
+ */
+function appendToAddonsArray(content, addonName) {
+  // 先找到 addons 数组的结束 `],`
+  // 策略：找到 'addons:' 或 'addons =' 之后的第一个顶层 `],` / `]`
+  const addonsStart = content.search(/\baddons\s*[:=]/);
+  if (addonsStart === -1) {
+    console.error('Error: could not find "addons" property in config.');
+    return null;
+  }
+
+  // 从 addons 声明之后找到数组的闭合 ]
+  const afterAddons = content.slice(addonsStart);
+  // 用简单的括号计数来匹配数组结束
+  let depth = 0;
+  let arrayCloseIdx = -1;
+  for (let i = 0; i < afterAddons.length; i++) {
+    const ch = afterAddons[i];
+    if (ch === '[') depth++;
+    else if (ch === ']') {
+      depth--;
+      if (depth === 0) {
+        arrayCloseIdx = addonsStart + i;
+        break;
+      }
+    }
+  }
+
+  if (arrayCloseIdx === -1) {
+    console.error('Error: could not locate the closing bracket of the addons array.');
+    return null;
+  }
+
+  // 找到 ] 所在行的缩进
+  const beforeClose = content.slice(0, arrayCloseIdx);
+  const lastNewline = beforeClose.lastIndexOf('\n');
+  const closeLineStart = lastNewline === -1 ? beforeClose : beforeClose.slice(lastNewline + 1);
+  const indent = closeLineStart.match(/^(\s*)/)?.[1] ?? '    ';
+
+  // 在 ] 之前插入
+  const insertion = `${indent}'${addonName}',\n`;
+  return content.slice(0, arrayCloseIdx) + insertion + content.slice(arrayCloseIdx);
+}
+
+// ── 主流程 ────────────────────────────────────────────────────────────
+
+function insertAddon({ configPath, addonName, sentinel, dryRun }) {
+  const absPath = resolve(configPath);
+  let content;
+
+  try {
+    content = readFileSync(absPath, 'utf8');
+  } catch (err) {
+    console.error(`Error reading ${absPath}:`, err.message);
+    process.exit(1);
+  }
+
+  // 1. 去重检查
+  if (addonExists(content, addonName)) {
+    console.log(`Addon "${addonName}" already exists in config. Nothing to do.`);
+    return false;
+  }
+
+  let newContent = null;
+
+  // 2. 尝试在哨兵前插入
+  const sentinelInfo = findSentinel(content, sentinel);
+  if (sentinelInfo) {
+    // 在哨兵行的开头处插入新项，继承哨兵的缩进
+    const insertion = `${sentinelInfo.indent}'${addonName}',\n`;
+    newContent =
+      content.slice(0, sentinelInfo.index) + insertion + content.slice(sentinelInfo.index);
+    console.log(
+      `Inserting "${addonName}" before sentinel "${sentinel}" (line indented with ${sentinelInfo.indent.length} spaces).`
+    );
+  } else {
+    // 3. 降级：哨兵不存在时追加到 addons 数组末尾
+    console.log(
+      `Sentinel "${sentinel}" not found. Appending "${addonName}" to the end of the addons array.`
+    );
+    newContent = appendToAddonsArray(content, addonName);
+  }
+
+  if (!newContent) {
+    console.error('Error: failed to produce modified config content.');
+    process.exit(1);
+  }
+
+  // 4. 写入或预览
+  if (dryRun) {
+    console.log('\n── Dry-run preview (diff) ──');
+    // 简易 diff：逐行对比
+    const oldLines = content.split('\n');
+    const newLines = newContent.split('\n');
+    const maxLen = Math.max(oldLines.length, newLines.length);
+    for (let i = 0; i < maxLen; i++) {
+      const oldLine = oldLines[i];
+      const newLine = newLines[i];
+      if (oldLine !== newLine) {
+        if (oldLine !== undefined) console.log(`- ${oldLine}`);
+        if (newLine !== undefined) console.log(`+ ${newLine}`);
+      }
+    }
+    console.log('── End preview ──\n');
+  } else {
+    writeFileSync(absPath, newContent, 'utf8');
+    console.log(`Written: ${absPath}`);
+  }
+
+  return true;
+}
+
+// ── CLI 入口 ──────────────────────────────────────────────────────────
+
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const positional = [];
+  const options = { sentinel: './services-preset.ts', dryRun: false };
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--sentinel' && i + 1 < args.length) {
+      options.sentinel = args[++i];
+    } else if (args[i] === '--dry-run') {
+      options.dryRun = true;
+    } else if (!args[i].startsWith('--')) {
+      positional.push(args[i]);
+    }
+  }
+
+  return { positional, options };
+}
+
+function printUsage() {
+  console.log(`Usage: node add-addon.mjs <config-path> <addon-name> [--sentinel <str>] [--dry-run]
+
+Arguments:
+  <config-path>   Path to the Storybook main.ts / main.js config file.
+  <addon-name>    The addon string to insert (e.g. '@storybook/addon-interactions').
+
+Options:
+  --sentinel <str>  The string marking the last addon entry, before which new addons
+                    are inserted. Default: './services-preset.ts'
+  --dry-run         Preview changes without writing to disk.
+`);
+}
+
+// ── 执行 ──────────────────────────────────────────────────────────────
+
+const { positional, options } = parseArgs(process.argv);
+
+if (positional.length < 2) {
+  printUsage();
+  process.exit(1);
+}
+
+const [configPath, addonName] = positional;
+
+insertAddon({
+  configPath,
+  addonName,
+  sentinel: options.sentinel,
+  dryRun: options.dryRun,
+});
