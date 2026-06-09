@@ -11,9 +11,9 @@ import { dedent } from 'ts-dedent';
 
 import { globalsModuleInfoMap } from '../../../code/core/src/manager/globals/globals-module-info';
 import {
-  BROWSER_TARGETS,
   NODE_TARGET,
   SUPPORTED_FEATURES,
+  getBrowserTargets,
 } from '../../../code/core/src/shared/constants/environments-support';
 import { resolvePackageDir } from '../../../code/core/src/shared/utils/module';
 import {
@@ -123,7 +123,7 @@ export async function generateBundle({
   const runtimeOptions = {
     ...sharedOptions,
     platform: 'browser',
-    target: BROWSER_TARGETS,
+    target: getBrowserTargets(),
     supported: SUPPORTED_FEATURES,
     splitting: false,
     external: [
@@ -219,7 +219,7 @@ export async function generateBundle({
         entryPoints: entries.browser.map(({ entryPoint }) => entryPoint),
         platform: 'browser',
         chunkNames: '_browser-chunks/[name]-[hash]',
-        target: BROWSER_TARGETS,
+        target: getBrowserTargets(),
         supported: SUPPORTED_FEATURES,
         plugins: [
           ...sharedOptions.plugins,

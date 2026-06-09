@@ -9,7 +9,7 @@ import { join, parse } from 'pathe';
 import sirv from 'sirv';
 
 import { globalsModuleInfoMap } from '../manager/globals/globals-module-info.ts';
-import { BROWSER_TARGETS, SUPPORTED_FEATURES } from '../shared/constants/environments-support.ts';
+import { BROWSER_TARGETS, SUPPORTED_FEATURES, getBrowserTargets } from '../shared/constants/environments-support.ts';
 import { resolvePackageDir } from '../shared/utils/module.ts';
 import type {
   BuilderBuildResult,
@@ -39,14 +39,15 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
     options.presets.apply<Record<string, string>>('env'),
   ]);
   const tsconfigPath = getTemplatePath('addon.tsconfig.json');
-  let configDirManagerEntry;
   try {
     configDirManagerEntry = resolveModulePath('./manager', {
       from: options.configDir,
       extensions: ['.js', '.mjs', '.jsx', '.ts', '.mts', '.tsx'],
     });
   } catch (e) {
+  } catch (e) {
     // no manager entry found in config directory, that's fine
+  }
   }
 
   const entryPoints = configDirManagerEntry
@@ -62,6 +63,7 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
     resolveExtensions: ['.ts', '.tsx', '.mjs', '.js', '.jsx'],
     outExtension: { '.js': '.js' },
     loader: {
+      // media
       '.js': 'jsx',
       // media
       '.png': 'dataurl',
@@ -70,34 +72,44 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
       '.jpeg': 'dataurl',
       '.svg': 'dataurl',
       '.webp': 'dataurl',
+      // modern fonts
       '.webm': 'dataurl',
+      // legacy font formats
       '.mp3': 'dataurl',
       // modern fonts
       '.woff2': 'dataurl',
       // legacy font formats
-      '.woff': 'dataurl',
+    target: getBrowserTargets(),
       '.eot': 'dataurl',
       '.ttf': 'dataurl',
     },
-    target: BROWSER_TARGETS,
+    target: getBrowserTargets(),
     supported: SUPPORTED_FEATURES,
     platform: 'browser',
     bundle: true,
-    minify: false,
+    metafile: false, // turn this on to assist with debugging the bundling of managerEntries
+
+    // treeShaking: true,
+
     minifyWhitespace: false,
     minifyIdentifiers: false,
+
     minifySyntax: true,
     metafile: false, // turn this on to assist with debugging the bundling of managerEntries
 
     // treeShaking: true,
 
+
+
     sourcemap: false,
     conditions: ['browser', 'module', 'default'],
+
 
     jsxFactory: 'React.createElement',
     jsxFragment: 'React.Fragment',
     jsx: 'transform',
     jsxImportSource: 'react',
+
 
     tsconfig: tsconfigPath,
 
@@ -146,6 +158,8 @@ const starter: StarterFunction = async function* starterGeneratorFn({
     config,
     favicon,
     customHead,
+  // make sure we clear output directory of addons dir before starting
+  // this could cause caching issues where addons are loaded when they shouldn't
     features,
     instance,
     refs,
@@ -183,6 +197,7 @@ const starter: StarterFunction = async function* starterGeneratorFn({
     '/sb-manager',
     sirv(CORE_DIR_ORIGIN, {
       maxAge: 300000,
+  // Build additional global values
       dev: true,
       immutable: true,
     })
@@ -260,6 +275,7 @@ const builder: BuilderFunction = async function* builderGeneratorFn({ startTime,
   const {
     config,
     customHead,
+  // TODO: this doesn't watch, we should change this to use the esbuild watch API: https://esbuild.github.io/api/#watch
     favicon,
     features,
     instance,
@@ -279,6 +295,7 @@ const builder: BuilderFunction = async function* builderGeneratorFn({ startTime,
   compilation = await instance({
     ...config,
     minify: true,
+  // Build additional global values
   });
 
   yield;
@@ -311,8 +328,11 @@ const builder: BuilderFunction = async function* builderGeneratorFn({ startTime,
     refs,
     logLevel,
     docsOptions,
+      // we tell the builder (that started) to stop ASAP and wait
     tagsOptions,
-    options,
+    } catch (e) {
+      //
+    }
     globals
   );
 

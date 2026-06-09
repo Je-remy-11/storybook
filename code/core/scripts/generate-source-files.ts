@@ -15,6 +15,7 @@ import { getWorkspace } from '../../../scripts/utils/tools.ts';
 import {
   BROWSER_TARGETS,
   SUPPORTED_FEATURES,
+  getBrowserTargets,
 } from '../src/shared/constants/environments-support.ts';
 
 GlobalRegistrator.register({ url: 'http://localhost:3000', width: 1920, height: 1080 });
@@ -153,7 +154,7 @@ async function generateExportsFile(): Promise<void> {
     legalComments: 'none',
     splitting: false,
     platform: 'browser',
-    target: BROWSER_TARGETS,
+    target: getBrowserTargets(),
     supported: SUPPORTED_FEATURES,
   });
 
