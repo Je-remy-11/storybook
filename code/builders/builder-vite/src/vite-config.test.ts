@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { BROWSER_TARGETS } from 'storybook/internal/common';
 import { Channel } from 'storybook/internal/channels';
 import type { Options, Presets } from 'storybook/internal/types';
 
@@ -14,6 +15,8 @@ vi.mock('vite', async (importOriginal) => ({
   defaultClientConditions: undefined,
 }));
 const loadConfigFromFileMock = vi.mocked(loadConfigFromFile);
+
+const originalBrowserTargetsOverride = process.env.BROWSER_TARGETS_OVERRIDE;
 
 const dummyOptions: Options = {
   configType: 'DEVELOPMENT',
@@ -36,6 +39,17 @@ const dummyOptions: Options = {
   presetsList: [],
 };
 
+afterEach(() => {
+  vi.clearAllMocks();
+
+  if (originalBrowserTargetsOverride === undefined) {
+    delete process.env.BROWSER_TARGETS_OVERRIDE;
+    return;
+  }
+
+  process.env.BROWSER_TARGETS_OVERRIDE = originalBrowserTargetsOverride;
+});
+
 describe('commonConfig', () => {
   it('should set configFile to false and include plugins', async () => {
     loadConfigFromFileMock.mockReturnValueOnce(
@@ -48,6 +62,54 @@ describe('commonConfig', () => {
     const config = await commonConfig(dummyOptions, 'development');
     expect(config.configFile).toBe(false);
     expect(config.plugins).toBeDefined();
+  });
+
+  it('should default build.target to Storybook browser targets', async () => {
+    loadConfigFromFileMock.mockReturnValueOnce(
+      Promise.resolve({
+        config: {},
+        path: '',
+        dependencies: [],
+      })
+    );
+
+    const config = await commonConfig(dummyOptions, 'build');
+
+    expect(config.build?.target).toEqual(BROWSER_TARGETS);
+  });
+
+  it('should allow BROWSER_TARGETS_OVERRIDE to override build.target', async () => {
+    process.env.BROWSER_TARGETS_OVERRIDE = 'chrome120,safari17.5';
+    loadConfigFromFileMock.mockReturnValueOnce(
+      Promise.resolve({
+        config: {},
+        path: '',
+        dependencies: [],
+      })
+    );
+
+    const config = await commonConfig(dummyOptions, 'build');
+
+    expect(config.build?.target).toEqual(['chrome120', 'safari17.5']);
+  });
+
+  it('should keep the user build.target when the override is invalid', async () => {
+    process.env.BROWSER_TARGETS_OVERRIDE = 'chrome@120';
+    loadConfigFromFileMock.mockReturnValueOnce(
+      Promise.resolve({
+        config: {
+          build: {
+            target: ['firefox115'],
+          },
+        },
+        path: '',
+        dependencies: [],
+      })
+    );
+
+    const config = await commonConfig(dummyOptions, 'build');
+
+    expect(config.build?.target).toEqual(['firefox115']);
   });
 
   it('should pass configLoader option to loadConfigFromFile', async () => {
@@ -71,8 +133,6 @@ describe('commonConfig', () => {
       } as Presets,
     };
 
-    // Inline mock: this test asserts a specific call signature, so it needs its
-    // own one-shot return value distinct from the shared default mock.
     loadConfigFromFileMock.mockReturnValueOnce(
       Promise.resolve({
         config: {},
@@ -83,7 +143,6 @@ describe('commonConfig', () => {
 
     await commonConfig(optionsWithConfigLoader, 'development');
 
-    // Verify loadConfigFromFile was called with configLoader as the 6th argument
     expect(loadConfigFromFileMock).toHaveBeenCalledWith(
       expect.objectContaining({ command: 'serve' }),
       undefined,
@@ -100,7 +159,6 @@ describe('storybookConfigPlugin', () => {
     const plugins = storybookConfigPlugin({ configDir: '/test/.storybook' });
     const configPlugin = plugins.find((p) => p.name === 'storybook:config-plugin')!;
 
-    // The config hook receives the current Vite config and returns partial config to merge
     const result = await (configPlugin.config as Function)({}, {});
     expect(result.envPrefix).toStrictEqual(['VITE_', 'STORYBOOK_']);
   });

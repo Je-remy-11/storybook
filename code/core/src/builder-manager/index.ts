@@ -1,6 +1,6 @@
 import { cp, rm, writeFile } from 'node:fs/promises';
 
-import { stringifyProcessEnvs } from 'storybook/internal/common';
+import { getBrowserTargetsOverride, stringifyProcessEnvs } from 'storybook/internal/common';
 import { logger } from 'storybook/internal/node-logger';
 
 import { globalExternals } from '@fal-works/esbuild-plugin-global-externals';
@@ -39,15 +39,14 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
     options.presets.apply<Record<string, string>>('env'),
   ]);
   const tsconfigPath = getTemplatePath('addon.tsconfig.json');
+  const browserTargetsOverride = getBrowserTargetsOverride();
   let configDirManagerEntry;
   try {
     configDirManagerEntry = resolveModulePath('./manager', {
       from: options.configDir,
       extensions: ['.js', '.mjs', '.jsx', '.ts', '.mts', '.tsx'],
     });
-  } catch (e) {
-    // no manager entry found in config directory, that's fine
-  }
+  } catch {}
 
   const entryPoints = configDirManagerEntry
     ? [...managerEntriesFromPresets, configDirManagerEntry]
@@ -63,7 +62,6 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
     outExtension: { '.js': '.js' },
     loader: {
       '.js': 'jsx',
-      // media
       '.png': 'dataurl',
       '.gif': 'dataurl',
       '.jpg': 'dataurl',
@@ -72,14 +70,12 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
       '.webp': 'dataurl',
       '.webm': 'dataurl',
       '.mp3': 'dataurl',
-      // modern fonts
       '.woff2': 'dataurl',
-      // legacy font formats
       '.woff': 'dataurl',
       '.eot': 'dataurl',
       '.ttf': 'dataurl',
     },
-    target: BROWSER_TARGETS,
+    target: browserTargetsOverride ?? BROWSER_TARGETS,
     supported: SUPPORTED_FEATURES,
     platform: 'browser',
     bundle: true,
@@ -87,30 +83,22 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
     minifyWhitespace: false,
     minifyIdentifiers: false,
     minifySyntax: true,
-    metafile: false, // turn this on to assist with debugging the bundling of managerEntries
-
-    // treeShaking: true,
-
+    metafile: false,
     sourcemap: false,
     conditions: ['browser', 'module', 'default'],
-
     jsxFactory: 'React.createElement',
     jsxFragment: 'React.Fragment',
     jsx: 'transform',
     jsxImportSource: 'react',
-
     tsconfig: tsconfigPath,
-
     legalComments: 'external',
     plugins: [globalExternals(globalsModuleInfoMap)],
-
     banner: {
       js: 'try{',
     },
     footer: {
       js: '}catch(e){ console.error("[Storybook] One of your manager-entries failed: " + import.meta.url, e); }',
     },
-
     define: {
       'process.env': JSON.stringify(envs),
       ...stringifyProcessEnvs(envs),
@@ -158,8 +146,6 @@ const starter: StarterFunction = async function* starterGeneratorFn({
 
   yield;
 
-  // make sure we clear output directory of addons dir before starting
-  // this could cause caching issues where addons are loaded when they shouldn't
   const addonsDir = config.outdir;
   await rm(addonsDir, { recursive: true, force: true });
 
@@ -197,7 +183,6 @@ const starter: StarterFunction = async function* starterGeneratorFn({
     );
   }
 
-  // Build additional global values
   const globals: Record<string, any> = await buildFrameworkGlobalsFromOptions(options);
 
   yield;
@@ -275,7 +260,6 @@ const builder: BuilderFunction = async function* builderGeneratorFn({ startTime,
   const addonsDir = config.outdir;
   const coreDirTarget = join(options.outputDir, `sb-manager`);
 
-  // TODO: this doesn't watch, we should change this to use the esbuild watch API: https://esbuild.github.io/api/#watch
   compilation = await instance({
     ...config,
     minify: true,
@@ -295,7 +279,6 @@ const builder: BuilderFunction = async function* builderGeneratorFn({ startTime,
   });
   const { cssFiles, jsFiles } = await readOrderedFiles(addonsDir, compilation?.outputFiles);
 
-  // Build additional global values
   const globals: Record<string, any> = await buildFrameworkGlobalsFromOptions(options);
 
   yield;
@@ -328,11 +311,8 @@ const builder: BuilderFunction = async function* builderGeneratorFn({ startTime,
 export const bail: ManagerBuilder['bail'] = async () => {
   if (asyncIterator) {
     try {
-      // we tell the builder (that started) to stop ASAP and wait
       await asyncIterator.throw(new Error());
-    } catch (e) {
-      //
-    }
+    } catch {}
   }
 };
 
