@@ -11,9 +11,9 @@ import { dedent } from 'ts-dedent';
 
 import { globalsModuleInfoMap } from '../../../code/core/src/manager/globals/globals-module-info';
 import {
-  BROWSER_TARGETS,
-  NODE_TARGET,
   SUPPORTED_FEATURES,
+  getBrowserTargets,
+  getNodeTarget,
 } from '../../../code/core/src/shared/constants/environments-support';
 import { resolvePackageDir } from '../../../code/core/src/shared/utils/module';
 import {
@@ -118,12 +118,12 @@ export async function generateBundle({
         },
       },
     ],
-  } as const satisfies EsbuildContextOptions;
+  } satisfies EsbuildContextOptions;
 
   const runtimeOptions = {
     ...sharedOptions,
     platform: 'browser',
-    target: BROWSER_TARGETS,
+    target: getBrowserTargets(),
     supported: SUPPORTED_FEATURES,
     splitting: false,
     external: [
@@ -157,7 +157,7 @@ export async function generateBundle({
       // This should set react in prod mode for the manager
       'process.env.NODE_ENV': '"production"',
     },
-  } as const satisfies EsbuildContextOptions;
+  } satisfies EsbuildContextOptions;
 
   const contexts: Array<ReturnType<typeof esbuild.context>> = [];
 
@@ -168,7 +168,7 @@ export async function generateBundle({
         ...sharedOptions,
         entryPoints: entries.node.map(({ entryPoint }) => entryPoint),
         platform: 'node',
-        target: NODE_TARGET,
+        target: getNodeTarget(),
         alias: {
           // Keep a single bundled acorn copy when CommonJS dependencies such as
           // acorn-jsx require('acorn') alongside ESM imports.
@@ -219,7 +219,7 @@ export async function generateBundle({
         entryPoints: entries.browser.map(({ entryPoint }) => entryPoint),
         platform: 'browser',
         chunkNames: '_browser-chunks/[name]-[hash]',
-        target: BROWSER_TARGETS,
+        target: getBrowserTargets(),
         supported: SUPPORTED_FEATURES,
         plugins: [
           ...sharedOptions.plugins,

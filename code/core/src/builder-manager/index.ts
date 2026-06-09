@@ -9,7 +9,10 @@ import { join, parse } from 'pathe';
 import sirv from 'sirv';
 
 import { globalsModuleInfoMap } from '../manager/globals/globals-module-info.ts';
-import { BROWSER_TARGETS, SUPPORTED_FEATURES } from '../shared/constants/environments-support.ts';
+import {
+  SUPPORTED_FEATURES,
+  getBrowserTargets,
+} from '../shared/constants/environments-support.ts';
 import { resolvePackageDir } from '../shared/utils/module.ts';
 import type {
   BuilderBuildResult,
@@ -79,7 +82,7 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
       '.eot': 'dataurl',
       '.ttf': 'dataurl',
     },
-    target: BROWSER_TARGETS,
+    target: getBrowserTargets(),
     supported: SUPPORTED_FEATURES,
     platform: 'browser',
     bundle: true,
