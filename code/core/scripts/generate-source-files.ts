@@ -13,7 +13,7 @@ import { dedent } from 'ts-dedent';
 
 import { getWorkspace } from '../../../scripts/utils/tools.ts';
 import {
-  BROWSER_TARGETS,
+  getBrowserTargets,
   SUPPORTED_FEATURES,
 } from '../src/shared/constants/environments-support.ts';
 
@@ -153,8 +153,7 @@ async function generateExportsFile(): Promise<void> {
     legalComments: 'none',
     splitting: false,
     platform: 'browser',
-    target: BROWSER_TARGETS,
-    supported: SUPPORTED_FEATURES,
+    target: getBrowserTargets(),
   });
 
   const { globalsNameValueMap: data } = await import(pathToFileURL(outFile).href);

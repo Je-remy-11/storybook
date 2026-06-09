@@ -9,7 +9,7 @@ import { join, parse } from 'pathe';
 import sirv from 'sirv';
 
 import { globalsModuleInfoMap } from '../manager/globals/globals-module-info.ts';
-import { BROWSER_TARGETS, SUPPORTED_FEATURES } from '../shared/constants/environments-support.ts';
+import { getBrowserTargets, SUPPORTED_FEATURES } from '../shared/constants/environments-support.ts';
 import { resolvePackageDir } from '../shared/utils/module.ts';
 import type {
   BuilderBuildResult,
@@ -25,7 +25,7 @@ import { buildFrameworkGlobalsFromOptions } from './utils/framework.ts';
 import { wrapManagerEntries } from './utils/managerEntries.ts';
 import { getTemplatePath, renderHTML } from './utils/template.ts';
 
-export { BROWSER_TARGETS, NODE_TARGET } from '../shared/constants/environments-support.ts';
+export { BROWSER_TARGETS, getBrowserTargets, NODE_TARGET } from '../shared/constants/environments-support.ts';
 
 const CORE_DIR_ORIGIN = join(resolvePackageDir('storybook'), 'dist/manager');
 
@@ -79,11 +79,10 @@ export const getConfig: ManagerBuilder['getConfig'] = async (options) => {
       '.eot': 'dataurl',
       '.ttf': 'dataurl',
     },
-    target: BROWSER_TARGETS,
+    target: getBrowserTargets(),
     supported: SUPPORTED_FEATURES,
     platform: 'browser',
     bundle: true,
-    minify: false,
     minifyWhitespace: false,
     minifyIdentifiers: false,
     minifySyntax: true,
