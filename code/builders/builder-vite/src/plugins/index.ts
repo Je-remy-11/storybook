@@ -7,6 +7,7 @@ export type { WebpackStatsPlugin } from './webpack-stats-plugin.ts';
 // Lower-level plugins re-exported for internal use and tests
 export { injectExportOrderPlugin } from './inject-export-order-plugin.ts';
 export { stripStoryHMRBoundary } from './strip-story-hmr-boundaries.ts';
+export { ignoreConfigWatchPlugin } from './ignore-config-watch-plugin.ts';
 export { codeGeneratorPlugin } from './code-generator-plugin.ts';
 export { csfPlugin } from './csf-plugin.ts';
 export { storybookExternalGlobalsPlugin } from './storybook-external-globals-plugin.ts';

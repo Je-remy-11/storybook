@@ -3,6 +3,7 @@ import type { Options } from 'storybook/internal/types';
 import type { Server } from 'http';
 import type { InlineConfig, ServerOptions } from 'vite';
 
+import { ignoreConfigWatchPlugin } from './plugins/ignore-config-watch-plugin.ts';
 import { createViteLogger } from './logger.ts';
 import { commonConfig } from './vite-config.ts';
 
@@ -26,7 +27,16 @@ export async function createViteServer(options: Options, devServer: Server) {
         strict: true,
       },
       watch: {
-        ignored: ['**/.nx/cache/**', '**/tsconfig.json'],
+        ...commonCfg.server?.watch,
+        ignored: [
+          ...(Array.isArray(commonCfg.server?.watch?.ignored)
+            ? commonCfg.server?.watch?.ignored
+            : commonCfg.server?.watch?.ignored
+              ? [commonCfg.server?.watch?.ignored]
+              : []),
+          /\.nx[\\/]cache/,
+          /tsconfig\.json/,
+        ],
       },
     },
     appType: 'custom' as const,
@@ -45,5 +55,9 @@ export async function createViteServer(options: Options, devServer: Server) {
   const { createServer } = await import('vite');
 
   finalConfig.customLogger ??= await createViteLogger();
+  finalConfig.plugins = [
+    ...(finalConfig.plugins ?? []),
+    ignoreConfigWatchPlugin({ patterns: [/tsconfig\.json/, /\.nx[\\/]cache/] }),
+  ];
   return createServer(finalConfig);
 }
