@@ -3,8 +3,6 @@ import type { Options } from 'storybook/internal/types';
 import type { Server } from 'http';
 import type { InlineConfig, ServerOptions } from 'vite';
 
-import { createViteLogger } from './logger.ts';
-import { commonConfig } from './vite-config.ts';
 
 export async function createViteServer(options: Options, devServer: Server) {
   const { presets } = options;
@@ -15,17 +13,6 @@ export async function createViteServer(options: Options, devServer: Server) {
 
   const config: InlineConfig & { server: ServerOptions } = {
     ...commonCfg,
-    server: {
-      allowedHosts,
-      middlewareMode: true,
-      hmr: {
-        port: options.port,
-        server: devServer,
-      },
-      fs: {
-        strict: true,
-      },
-    },
     appType: 'custom' as const,
   };
 
@@ -38,9 +25,4 @@ export async function createViteServer(options: Options, devServer: Server) {
   }
 
   const finalConfig = await presets.apply('viteFinal', config, options);
-
-  const { createServer } = await import('vite');
-
-  finalConfig.customLogger ??= await createViteLogger();
-  return createServer(finalConfig);
 }

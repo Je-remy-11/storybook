@@ -18,40 +18,56 @@ const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
 const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
 const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
 
+type StoryGroup = {
+  prefix?: string;
+  dirs: Array<string | { dir: string; files?: string }>;
+};
+
+const storyGroups: StoryGroup[] = [
+  { prefix: 'core', dirs: ['../core/template/stories'] },
+  { prefix: 'manager', dirs: ['../core/src/manager'] },
+  { prefix: 'preview', dirs: ['../core/src/preview-api', '../core/src/preview'] },
+  { prefix: 'core/shared', dirs: ['../core/src/shared'] },
+  { prefix: 'brand', dirs: ['../core/src/components/brand'] },
+  { prefix: 'components', dirs: ['../core/src/components/components'] },
+  { prefix: 'component-testing', dirs: ['../core/src/component-testing/components'] },
+  { prefix: 'controls', dirs: ['../core/src/controls/components'] },
+  { prefix: 'highlight', dirs: ['../core/src/highlight'] },
+  { prefix: 'actions', dirs: ['../core/src/actions/containers'] },
+  {
+    prefix: 'addons/accessibility',
+    dirs: ['../addons/a11y/src', '../addons/a11y/template/stories'],
+  },
+  { prefix: 'addons/docs', dirs: ['../addons/docs/template/stories', '../addons/docs/src'] },
+  { prefix: 'addons/links', dirs: ['../addons/links/template/stories'] },
+  { prefix: 'addons/themes', dirs: ['../addons/themes/template/stories'] },
+  { prefix: 'addons/onboarding', dirs: ['../addons/onboarding/src'] },
+  { dirs: ['../addons/onboarding/example-stories'] },
+  { prefix: 'addons/pseudo-states', dirs: ['../addons/pseudo-states/src'] },
+  {
+    prefix: 'addons/vitest',
+    dirs: [
+      '../addons/vitest/src/components',
+      '../addons/vitest/template/stories',
+      { dir: '../addons/vitest/src', files: 'stories.tsx' },
+    ],
+  },
+];
+
 const config = defineMain({
   stories: [
     './bench/*.stories.@(js|jsx|ts|tsx)',
-    ...[
-      { dir: '../core/template/stories', prefix: 'core' },
-      { dir: '../core/src/manager', prefix: 'manager' },
-      { dir: '../core/src/preview-api', prefix: 'preview' },
-      { dir: '../core/src/preview', prefix: 'preview' },
-      { dir: '../core/src/shared', prefix: 'core/shared' },
-      { dir: '../core/src/components/brand', prefix: 'brand' },
-      { dir: '../core/src/components/components', prefix: 'components' },
-      { dir: '../core/src/component-testing/components', prefix: 'component-testing' },
-      { dir: '../core/src/controls/components', prefix: 'controls' },
-      { dir: '../core/src/highlight', prefix: 'highlight' },
-      { dir: '../core/src/actions/containers', prefix: 'actions' },
-      { dir: '../addons/a11y/src', prefix: 'addons/accessibility' },
-      { dir: '../addons/a11y/template/stories', prefix: 'addons/accessibility' },
-      { dir: '../addons/docs/template/stories', prefix: 'addons/docs' },
-      { dir: '../addons/docs/src', prefix: 'addons/docs' },
-      { dir: '../addons/links/template/stories', prefix: 'addons/links' },
-      { dir: '../addons/themes/template/stories', prefix: 'addons/themes' },
-      { dir: '../addons/onboarding/src', prefix: 'addons/onboarding' },
-      { dir: '../addons/onboarding/example-stories' },
-      { dir: '../addons/pseudo-states/src', prefix: 'addons/pseudo-states' },
-      { dir: '../addons/vitest/src/components', prefix: 'addons/vitest' },
-      { dir: '../addons/vitest/template/stories', prefix: 'addons/vitest' },
-      { dir: '../addons/vitest/src', prefix: 'addons/vitest', files: 'stories.tsx' },
-    ].flatMap(({ dir, prefix, files }) => [
-      {
-        directory: dir,
-        ...(prefix && { titlePrefix: prefix }),
-        ...(files && { files }),
-      },
-    ]),
+    ...storyGroups.flatMap(({ prefix, dirs }) =>
+      dirs.map((entry) => {
+        const { dir, files } =
+          typeof entry === 'string' ? { dir: entry, files: undefined } : entry;
+        return {
+          directory: dir,
+          ...(prefix && { titlePrefix: prefix }),
+          ...(files && { files }),
+        };
+      })
+    ),
   ],
   addons: [
     '@storybook/addon-onboarding',

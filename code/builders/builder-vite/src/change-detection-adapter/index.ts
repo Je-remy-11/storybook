@@ -8,16 +8,6 @@ import { logger } from 'storybook/internal/node-logger';
 import { normalize } from 'pathe';
 import type { ViteDevServer } from 'vite';
 
-/**
- * Vite implementation of {@link ChangeDetectionAdapter}.
- *
- * - `getResolveConfig()` snapshots `server.config.resolve.alias`, `server.config.resolve.conditions`
- *   and `server.config.root` once at startup. The detector caches the result.
- * - `onFileChange()` subscribes to `server.watcher` (chokidar) and forwards `add`/`change`/`unlink`
- *   events with normalised absolute paths. Other chokidar event names (`addDir`, `unlinkDir`,
- *   `ready`, `raw`, `error`) are intentionally filtered out.
- */
-export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeDetectionAdapter {
   return {
     /**
      * Snapshots the Vite resolver configuration (aliases, conditions, root) once at
@@ -63,4 +53,3 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
       };
     },
   };
-}

@@ -56,12 +56,6 @@ export function watchStorySpecifiers(
     // poll: true, // Slow!!! Enable only in special cases
     followSymlinks: false,
     ignored: ['**/.git', '**/node_modules'],
-  });
-  wp.watch({ files, directories });
-
-  const toImportPath = (absolutePath: Path) => {
-    const relativePath = relative(options.workingDir, absolutePath);
-    return slash(relativePath.startsWith('.') ? relativePath : `./${relativePath}`);
   };
 
   async function onChangeOrRemove(absolutePath: Path, removed: boolean) {
