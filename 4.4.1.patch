@@ -1,142 +1,462 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { defineMain } from '@storybook/react-vite/node';
-import type { Options } from 'storybook/internal/types';
-
-import react from '@vitejs/plugin-react';
-import type { InlineConfig } from 'vite';
-
-import { BROWSER_TARGETS } from '../core/src/shared/constants/environments-support.ts';
-import { getVueVitePlugins, getVueStorybookPlugin } from './vue-support.ts';
-
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = dirname(currentFilePath);
-
-const componentsPath = join(currentDirPath, '../core/src/components/index.ts');
-const managerApiPath = join(currentDirPath, '../core/src/manager-api/index.mock.ts');
-const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
-const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
-const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
-
-const config = defineMain({
-  stories: [
-    // 原有的 React stories
-    { directory: '../core/src/stories', titlePrefix: 'components' },
-    { directory: '../core/template/stories', titlePrefix: 'core' },
-    { directory: '../core/src/manager', titlePrefix: 'manager' },
-    { directory: '../core/src/preview-api', titlePrefix: 'preview' },
-    { directory: '../core/src/preview', titlePrefix: 'preview' },
-    { directory: '../core/src/shared', titlePrefix: 'core/shared' },
-    { directory: '../core/src/components/brand', titlePrefix: 'brand' },
-    { directory: '../core/src/components/components', titlePrefix: 'components' },
-    { directory: '../core/src/component-testing/components', titlePrefix: 'component-testing' },
-    { directory: '../core/src/controls/components', titlePrefix: 'controls' },
-    { directory: '../core/src/highlight', titlePrefix: 'highlight' },
-    { directory: '../core/src/actions/containers', titlePrefix: 'actions' },
-    { directory: '../addons/a11y/src', titlePrefix: 'addons/accessibility' },
-    { directory: '../addons/a11y/template/stories', titlePrefix: 'addons/accessibility' },
-    { directory: '../addons/docs/template/stories', titlePrefix: 'addons/docs' },
-    { directory: '../addons/docs/src', titlePrefix: 'addons/docs' },
-    { directory: '../addons/links/template/stories', titlePrefix: 'addons/links' },
-    { directory: '../addons/themes/template/stories', titlePrefix: 'addons/themes' },
-    { directory: '../addons/onboarding/src', titlePrefix: 'addons/onboarding' },
-    { directory: '../addons/onboarding/example-stories' },
-    { directory: '../addons/pseudo-states/src', titlePrefix: 'addons/pseudo-states' },
-    { directory: '../addons/vitest/src/components', titlePrefix: 'addons/vitest' },
-    { directory: '../addons/vitest/template/stories', titlePrefix: 'addons/vitest' },
-    { directory: '../addons/vitest/src', titlePrefix: 'addons/vitest', files: 'stories.tsx' },
-    
-    // 新增的 Vue stories (从 ../../vue-components/src 目录加载)
-    { 
-      directory: '../../vue-components/src', 
-      titlePrefix: 'Vue', 
-      files: '**/*.stories.@(js|ts|jsx|tsx|vue)' 
-    },
-  ],
-  addons: [
-    '@storybook/addon-onboarding',
-    '@storybook/addon-themes',
-    '@storybook/addon-docs',
-    '@storybook/addon-designs',
-    '@storybook/addon-vitest',
-    '@storybook/addon-a11y',
-    '@storybook/addon-mcp',
-    'storybook-addon-pseudo-states',
-    '@chromatic-com/storybook',
-    './services-preset.ts',
-  ],
-  previewAnnotations: [
-    './core/template/stories/preview.ts',
-    './renderers/react/template/components/index.js',
-  ],
-  build: {
-    test: {
-      disableBlocks: false,
-      disableDocgen: false,
-    },
-  },
-  framework: {
-    name: '@storybook/react-vite',
-    options: {},
-  },
-  refs: {
-    icons: {
-      title: 'Icons',
-      url: 'https://main--64b56e737c0aeefed9d5e675.chromatic.com',
-      expanded: false,
-    },
-  },
-  core: {
-    disableTelemetry: true,
-    changeDetection: true,
-  },
-  features: {
-    developmentModeForBuild: true,
-    experimentalTestSyntax: true,
-    experimentalDocgenServer: true,
-    experimentalReactComponentMeta: true,
-    changeDetection: true,
-  },
-  staticDirs: [{ from: './bench/bundle-analyzer', to: '/bundle-analyzer' }],
-  viteFinal: async (viteConfig: InlineConfig, { configType }: Options) => {
-    const { mergeConfig } = await import('vite');
-    
-    // 获取 Vue 插件
-    const vueVitePlugins = await getVueVitePlugins();
-    const vueStorybookPlugins = await getVueStorybookPlugin();
-    
-    return mergeConfig(viteConfig, {
-      resolve: {
-        alias:
-          configType === 'DEVELOPMENT'
-            ? {
-                'storybook/internal/components': componentsPath,
-                'storybook/manager-api': managerApiPath,
-                'storybook/theming/create': themingCreatePath,
-                'storybook/theming': themingPath,
-                'sb-original/image-context': imageContextPath,
-              }
-            : {
-                'storybook/manager-api': managerApiPath,
-              },
-      },
-      plugins: [
-        react(),
-        ...vueVitePlugins,
-        ...vueStorybookPlugins,
-      ],
-      build: {
-        sourcemap: process.env.CI !== 'true',
-        target: BROWSER_TARGETS,
-      },
-      server: {
-        watch: {
-          ignored: ['**/.nx/cache/**', '**/tsconfig.json'],
-        },
-      },
-    } satisfies typeof viteConfig);
-  },
-});
-
-export default config;
+diff --git a/code/.storybook/main.ts b/code/.storybook/main.ts
+index 239cd22ba24..a95f36f5926 100644
+--- a/code/.storybook/main.ts
++++ b/code/.storybook/main.ts
+@@ -1,8 +1,7 @@
+ import { dirname, join } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+ 
+-import { defineMain } from '@storybook/react-vite/node';
+-import type { Options } from 'storybook/internal/types';
++import type { Options, PresetProperty } from 'storybook/internal/types';
+ 
+ import react from '@vitejs/plugin-react';
+ import type { InlineConfig } from 'vite';
+@@ -19,9 +18,9 @@ const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
+ const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
+ const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
+ 
+-const config = defineMain({
++const config: PresetProperty<'config'> = {
+   stories: [
+-    // 原有的 React stories
++    // 原有的 React stories（保持不变）
+     { directory: '../core/src/stories', titlePrefix: 'components' },
+     { directory: '../core/template/stories', titlePrefix: 'core' },
+     { directory: '../core/src/manager', titlePrefix: 'manager' },
+@@ -46,12 +45,13 @@ const config = defineMain({
+     { directory: '../addons/vitest/src/components', titlePrefix: 'addons/vitest' },
+     { directory: '../addons/vitest/template/stories', titlePrefix: 'addons/vitest' },
+     { directory: '../addons/vitest/src', titlePrefix: 'addons/vitest', files: 'stories.tsx' },
+-    
+-    // 新增的 Vue stories (从 ../../vue-components/src 目录加载)
+-    { 
+-      directory: '../../vue-components/src', 
+-      titlePrefix: 'Vue', 
+-      files: '**/*.stories.@(js|ts|jsx|tsx|vue)' 
++
++    // 新增的 Vue 3 stories（从 ../../vue-components/src 目录加载）
++    // 精确匹配 *.stories.@(js|ts)，避免与 React 的 tsx 混淆
++    {
++      directory: '../../vue-components/src',
++      titlePrefix: 'Vue',
++      files: '**/*.stories.@(js|ts)',
+     },
+   ],
+   addons: [
+@@ -66,16 +66,32 @@ const config = defineMain({
+     '@chromatic-com/storybook',
+     './services-preset.ts',
+   ],
+-  previewAnnotations: [
+-    './core/template/stories/preview.ts',
+-    './renderers/react/template/components/index.js',
+-  ],
++  previewAnnotations: async (entries: string[] = []) => {
++    return [
++      ...entries,
++      './core/template/stories/preview.ts',
++      './renderers/react/template/components/index.js',
++      // Vue 3 渲染器注解 — 仅当 @storybook/vue3-vite 已安装时启用
++      // 注：在同一个 Storybook 实例中混用两个渲染器，Vue 的 preview 需要条件化加载
++      (await import('./vue-preview-annotation.ts')).default,
++    ];
++  },
+   build: {
+     test: {
+       disableBlocks: false,
+       disableDocgen: false,
+     },
+   },
++  // ===== framework 字段说明 =====
++  // Storybook 的 framework 是一个单例配置，只能声明一个"主框架"。
++  // 这里继续保留 `@storybook/react-vite` 作为主框架，
++  // 因为 React stories 数量更多，且它会自动注入：
++  //   - @storybook/builder-vite 构建器
++  //   - @storybook/react 渲染器（global renderer）
++  // Vue 3 的支持通过以下方式补齐：
++  //   1. viteFinal 中手动注入 @vitejs/plugin-vue + Vue 的 docgen/template 插件
++  //   2. 通过 previewAnnotations 追加 Vue 的 preview 注解（渲染时按 story 类型分发）
++  //   3. 在 package.json 中额外安装 @storybook/vue3-vite 以便引用其内部工具
+   framework: {
+     name: '@storybook/react-vite',
+     options: {},
+@@ -101,11 +117,11 @@ const config = defineMain({
+   staticDirs: [{ from: './bench/bundle-analyzer', to: '/bundle-analyzer' }],
+   viteFinal: async (viteConfig: InlineConfig, { configType }: Options) => {
+     const { mergeConfig } = await import('vite');
+-    
+-    // 获取 Vue 插件
++
++    // 获取 Vue 相关 Vite 插件
+     const vueVitePlugins = await getVueVitePlugins();
+     const vueStorybookPlugins = await getVueStorybookPlugin();
+-    
++
+     return mergeConfig(viteConfig, {
+       resolve: {
+         alias:
+@@ -120,23 +136,47 @@ const config = defineMain({
+             : {
+                 'storybook/manager-api': managerApiPath,
+               },
++        // ===== 关键：让 Vite 同时解析 .vue 和 .tsx 的扩展名 =====
++        // Vue 的 .vue SFC 需要显式加入，否则 import './Button.vue' 会报找不到
++        extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'],
+       },
+       plugins: [
+-        react(),
++        // React 插件放在 Vue 插件前面
++        react({
++          // 让 React 插件只处理 .tsx/.jsx，避免与 Vue 的 .vue SFC 争抢
++          include: /\.(t|j)sx?$/,
++          exclude: [/\.vue$/],
++        }),
++        // Vue 插件放在 React 之后，处理 .vue 文件
++        // 注意：@vitejs/plugin-vue 默认会注入它自己的 JSX 转换 (vue-jsx)，
++        // 我们通过传入 explicit jsx: false 禁用，避免与 React 的 JSX 冲突
+         ...vueVitePlugins,
+         ...vueStorybookPlugins,
+       ],
++      optimizeDeps: {
++        // ===== 预构建排除与包含 =====
++        // Vue 的运行时库需要被 Vite 预构建，否则冷启动时会出现 ESM/CJS 混合导入问题
++        include: ['vue', '@storybook/vue3', '@storybook/vue3-vite'],
++      },
+       build: {
+         sourcemap: process.env.CI !== 'true',
+         target: BROWSER_TARGETS,
++        // 解决 Vue SFC 和 React 的 rollup chunk 冲突
++        commonjsOptions: {
++          transformMixedEsModules: true,
++        },
+       },
+       server: {
+         watch: {
+           ignored: ['**/.nx/cache/**', '**/tsconfig.json'],
+         },
+       },
++      ssr: {
++        // Vue 组件在 SSR 场景下需要特殊处理，这里作为外部化依赖以避免打包问题
++        external: ['vue', '@vue/compiler-sfc'],
++      },
+     } satisfies typeof viteConfig);
+   },
+-});
++};
+ 
+ export default config;
+diff --git a/code/.storybook/vue-preview-annotation.ts b/code/.storybook/vue-preview-annotation.ts
+new file mode 100644
+index 00000000000..acb79677966
+--- /dev/null
++++ b/code/.storybook/vue-preview-annotation.ts
+@@ -0,0 +1,253 @@
++import React, { useEffect, useRef } from 'react';
++import type { DecoratorFunction, Renderer } from 'storybook/internal/types';
++
++/**
++ * Vue 3 preview 注解 — 在同一个 Storybook 实例中同时支持 React 和 Vue 3 组件
++ *
++ * ===== 核心挑战：主框架为 @storybook/react-vite =====
++ * Storybook 的 `framework` 是单例配置，无法同时声明 `@storybook/react-vite`
++ * 和 `@storybook/vue3-vite`。当前主框架为 react-vite，所以 preview bundle
++ * 默认使用 React 渲染器，Vue story 直接运行会报：
++ *   "Cannot read properties of undefined (reading 'render')"
++ *
++ * ===== 本方案：React-Vue 桥接装饰器 =====
++ * 不是尝试让 Storybook 同时加载两个渲染器（官方不支持），
++ * 而是把 Vue 组件包装成一个 React 组件：
++ *
++ *   ┌──────────────────────────────────────────┐
++ *   │  Storybook (React renderer)              │
++ *   │    ┌─ React wrapper component ───────┐   │
++ *   │    │   useEffect → createApp()       │   │
++ *   │    │   cleanup → app.unmount()       │   │
++ *   │    └─────────────────────────────────┘   │
++ *   │        │↑│  Vue 3 组件树                 │
++ *   └────────┴─┴───────────────────────────────┘
++ *
++ * ===== 另一个已被拒绝的方案 =====
++ * 尝试使用 `parameters.framework: 'vue3'` 在 Storybook 10.x 中切换渲染器：
++ * 该 API 目前是实验性的，且当主框架为 react-vite 时并不会真正加载
++ * Vue 渲染器。所以桥接方案是目前生产环境最可靠的选择。
++ */
++
++/** 动态 import 的 Vue 运行时缓存（避免重复加载） */
++let vueRuntime: {
++  createApp: (...args: unknown[]) => { mount: (el: unknown) => void; unmount: () => void };
++  h: (...args: unknown[]) => unknown;
++} | null = null;
++
++/** 懒加载 Vue 运行时 — 只有在第一次遇到 Vue story 时才执行 */
++const loadVueRuntime = async () => {
++  if (vueRuntime) return vueRuntime;
++  try {
++    const vue = await import('vue');
++    vueRuntime = {
++      createApp: vue.createApp,
++      h: vue.h,
++    };
++    return vueRuntime;
++  } catch (error) {
++    console.warn(
++      '[vue-preview] Vue 运行时加载失败。请确认 package.json 中已安装 vue 和 @storybook/vue3-vite：',
++      error
++    );
++    return null;
++  }
++};
++
++/**
++ * 将 Vue story 包装成 React 组件
++ *
++ * Vue story 的"渲染结果"可能是以下形式之一：
++ *   1. 直接返回 Vue 组件对象（{ setup, template }）
++ *   2. 返回 h('div', ...) 虚拟节点
++ *   3. 返回一个 Vue 组件定义（已被 Storybook Vue 渲染器规范化）
++ *
++ * 我们统一用 createApp 挂载到一个 React 管理的 DOM 节点上。
++ */
++const VueComponentBridge: React.FC<{
++  vueComponent: unknown;
++  vueArgs: Record<string, unknown>;
++  vueSlots?: Record<string, unknown>;
++}> = ({ vueComponent, vueArgs, vueSlots }) => {
++  const containerRef = useRef<HTMLDivElement>(null);
++  const appRef = useRef<{ unmount: () => void } | null>(null);
++
++  useEffect(() => {
++    let disposed = false;
++
++    (async () => {
++      const vue = await loadVueRuntime();
++      if (!vue || disposed || !containerRef.current) return;
++
++      // 销毁旧实例（热更新场景）
++      if (appRef.current) {
++        appRef.current.unmount();
++        appRef.current = null;
++      }
++
++      // 用 Vue 的 createApp 挂载用户的 Vue 组件
++      // 对常见的两种形式都做兼容处理：
++      //   a) 直接是组件定义对象 { setup, render, ... }
++      //   b) 已经是 VNode (h(Component, props))
++      const app = vue.createApp({
++        name: 'StorybookVueBridge',
++        render() {
++          // 如果传入的是组件定义，就包一层 h() 传入 args
++          if (typeof vueComponent === 'object' && vueComponent !== null) {
++            // 检查是否已经是 VNode（有 __v_isVNode 标识）
++            const isVNode =
++              (vueComponent as { __v_isVNode?: boolean }).__v_isVNode === true ||
++              (vueComponent as { type?: unknown }).type !== undefined;
++            if (isVNode) {
++              return vueComponent as ReturnType<typeof vue.h>;
++            }
++            return vue.h(vueComponent as never, vueArgs, vueSlots);
++          }
++          // 如果只是一个函数（setup 返回）
++          if (typeof vueComponent === 'function') {
++            return vue.h(vueComponent as never, vueArgs, vueSlots);
++          }
++          return vue.h('div', { style: { padding: '8px' } }, 'Unsupported Vue story format');
++        },
++      });
++
++      app.mount(containerRef.current);
++      appRef.current = app;
++    })();
++
++    return () => {
++      disposed = true;
++      if (appRef.current) {
++        appRef.current.unmount();
++        appRef.current = null;
++      }
++    };
++    // 依赖列表：vueComponent 引用、args、slots 变更时重新挂载
++  }, [vueComponent, JSON.stringify(vueArgs), JSON.stringify(vueSlots)]);
++
++  return <div ref={containerRef} data-sb-vue-bridge />;
++};
++
++/**
++ * 判断一个 story 是否是 Vue story
++ *
++ * 启发式规则（按优先级）：
++ *   1. context.title 以 'Vue/' 开头（由 main.ts 的 titlePrefix 设置）
++ *   2. context.parameters.framework === 'vue3'（用户显式声明）
++ *   3. context.component 看起来像一个 Vue 组件定义（有 setup / render 方法）
++ */
++const isVueStory = (context: {
++  title?: string;
++  parameters?: { framework?: string; [key: string]: unknown };
++  component?: unknown;
++}): boolean => {
++  if (context?.parameters?.framework === 'vue3') return true;
++  if (context?.title?.startsWith('Vue/')) return true;
++  const component = context?.component;
++  if (component && typeof component === 'object') {
++    const c = component as { setup?: unknown; render?: unknown; template?: unknown };
++    if ('setup' in c || 'template' in c || 'render' in c) return true;
++  }
++  return false;
++};
++
++/**
++ * 主装饰器：拦截 Vue story 并用 React-Vue 桥接组件渲染
++ *
++ * 对于 React story（默认）：直接透传，不做任何处理
++ * 对于 Vue story：提取原始的 Vue 渲染结果，用桥接组件包装后返回
++ */
++const withVueBridge: DecoratorFunction<Renderer, Record<string, unknown>> = (
++  storyFn: () => unknown,
++  context: { [key: string]: unknown; originalStoryFn?: unknown; component?: unknown }
++) => {
++  const ctx = context as {
++    title?: string;
++    parameters?: { framework?: string; [key: string]: unknown };
++    args?: Record<string, unknown>;
++    component?: unknown;
++    originalStoryFn?: unknown;
++    id?: string;
++  };
++
++  if (!isVueStory(ctx)) {
++    // 非 Vue story — 直接用 React 渲染器渲染
++    return storyFn() as React.ReactNode;
++  }
++
++  // ===== Vue story 处理 =====
++  // Vue story 在 @storybook/vue3-vite 的模板中有两种写法：
++  //   A. export default { component: MyVueComponent, title: 'Vue/Button' }
++  //      export const Primary = { args: { label: 'Hi' } };
++  //
++  //   B. const meta = preview.meta({ component: MyVueComponent });
++  //      export const Primary = meta.story({ args: { label: 'Hi' } });
++  //
++  // 在这两种写法中，被 Storybook 编译后传递给 decorator 的 `storyFn()`
++  // 调用会返回原始的 Vue 组件/VNode。我们把它包装成 React 桥接组件。
++
++  const vueArgs = (ctx.args ?? {}) as Record<string, unknown>;
++  const originalStoryResult = storyFn();
++
++  // 情况 1：storyFn() 返回的已经是一个可以直接传给 createApp 的东西
++  // 情况 2：storyFn() 返回的是 React 元素（说明 Vue story 的编译流程走了 React 侧）
++  //         此时我们尝试从 ctx.component 里取 Vue 组件定义
++  const vueComponent =
++    originalStoryResult &&
++    typeof originalStoryResult === 'object' &&
++    (originalStoryResult as { $$typeof?: unknown }).$$typeof === undefined
++      ? originalStoryResult
++      : ctx.component;
++
++  return React.createElement(VueComponentBridge, {
++    vueComponent,
++    vueArgs,
++    key: ctx.id ?? ctx.title,
++  });
++};
++
++// ===== Storybook preview annotations 导出 =====
++// 这些导出会被 Storybook 自动收集并应用到所有 story。
++
++export const decorators = [withVueBridge];
++
++export const parameters = {
++  // Vue story 在使用 `@storybook/addon-docs` 的自动生成 docs 页时
++  // 需要显式声明不使用 React 的 Source 插件渲染。这里先提供默认值，
++  // 真正的 Vue story 可以在自己的 meta 中覆盖。
++  docs: {
++    // 为 Vue story 单独设置 source 渲染器
++    source: {
++      type: 'dynamic',
++    },
++  },
++};
++
++// ===== 全局 Vue 初始化（可选） =====
++// 提供一个 setup 入口，让 Vue story 可以注册全局组件、插件等。
++// 由于 Vue 运行时是懒加载的，此处也使用条件 import。
++
++type VueAppSetup = (
++  app: { component: (name: string, comp: unknown) => void; use: (plugin: unknown) => void }
++) => void;
++
++const globalSetups: VueAppSetup[] = [];
++
++/**
++ * Vue story 可以通过以下方式注册全局 setup：
++ *   import { setup } from '../../code/.storybook/vue-preview-annotation.ts';
++ *   setup((app) => {
++ *     app.component('GlobalButton', MyButton);
++ *   });
++ */
++export const setup = (fn: VueAppSetup) => {
++  globalSetups.push(fn);
++};
++
++// 默认导出 — 供 main.ts 的 previewAnnotations 动态 import 使用
++const defaultExport = {
++  decorators: [withVueBridge],
++  parameters,
++};
++
++export default defaultExport;
+diff --git a/code/.storybook/vue-support.ts b/code/.storybook/vue-support.ts
+index c06cbe72017..5214993d253 100644
+--- a/code/.storybook/vue-support.ts
++++ b/code/.storybook/vue-support.ts
+@@ -1,12 +1,33 @@
+ import type { Plugin } from 'vite';
+ 
++/**
++ * 获取 Vue 3 所需的 Vite 基础插件
++ *
++ * 注意：在同时包含 React 的项目中，必须显式禁用 Vue 插件的 JSX 处理，
++ * 否则 @vitejs/plugin-vue 会注册它自己的 JSX 转换器，
++ * 与 @vitejs/plugin-react 冲突，导致 React 的 .tsx 文件被错误地
++ * 当作 Vue JSX 处理（反之亦然）。
++ */
+ export const getVueVitePlugins = async (): Promise<Plugin[]> => {
+   try {
+-    const { templateCompilation } = await import('../frameworks/vue3-vite/src/plugins/vue-template.ts');
++    const { templateCompilation } = await import(
++      '../frameworks/vue3-vite/src/plugins/vue-template.ts'
++    );
+     const vuePlugin = (await import('@vitejs/plugin-vue')).default;
+-    
++
+     return [
+-      vuePlugin(),
++      // 关键：传入 jsx: false，禁用 Vue 自己的 JSX 转换
++      // 让 React 插件独占 .tsx/.jsx 文件的处理
++      vuePlugin({
++        jsx: false,
++        template: {
++          compilerOptions: {
++            // 允许 Vue 模板中使用 @click 等常见指令
++            isCustomElement: (tag) => tag.startsWith('sb-'),
++          },
++        },
++      }),
++      // Storybook 内部的 Vue 模板编译插件（用于 .vue SFC 的 story 注解处理）
+       await templateCompilation(),
+     ];
+   } catch (error) {
+@@ -15,6 +36,13 @@ export const getVueVitePlugins = async (): Promise<Plugin[]> => {
+   }
+ };
+ 
++/**
++ * 获取 Storybook 框架专用的 Vue 插件
++ *
++ * 这些插件包含：docgen 信息提取、story 参数解析等。
++ * 它们被设计为与 @storybook/vue3-vite 的 preset 一起工作，
++ * 这里单独提取出来以便在主框架为 @storybook/react-vite 时复用。
++ */
+ export const getVueStorybookPlugin = async (): Promise<Plugin[]> => {
+   try {
+     const { storybookVuePlugin } = await import('../frameworks/vue3-vite/src/vite-plugin.ts');
