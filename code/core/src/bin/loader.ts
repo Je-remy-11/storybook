@@ -14,7 +14,7 @@ import { deprecate } from 'storybook/internal/node-logger';
 import { transform } from 'esbuild';
 import { dedent } from 'ts-dedent';
 
-import { NODE_TARGET } from '../shared/constants/environments-support.ts';
+import { getNodeTarget } from '../shared/constants/environments-support.ts';
 
 export const supportedExtensions = [
   '.js',
@@ -150,7 +150,7 @@ export const load: LoadHook = async (url, context, nextLoad) => {
     const rawSource = await readFile(filePath, 'utf-8');
     const transformedSource = await transform(rawSource, {
       loader: 'ts',
-      target: NODE_TARGET,
+      target: getNodeTarget(),
       format: 'esm',
       platform: 'neutral',
     });

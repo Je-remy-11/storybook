@@ -86,3 +86,11 @@ export type {
   StoryTestResultHistoryEntry,
 } from '../shared/utils/test-result-types.ts';
 export { toStoryTestResult } from '../shared/utils/to-story-test-result.ts';
+
+export {
+  BROWSER_TARGETS,
+  NODE_TARGET,
+  SUPPORTED_FEATURES,
+  getBrowserTargets,
+  getNodeTarget,
+} from '../shared/constants/environments-support.ts';

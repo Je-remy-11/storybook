@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 
 import { getBuilderOptions, resolvePathInStorybookCache } from 'storybook/internal/common';
+import { getBrowserTargets } from 'storybook/internal/core-server';
 import type { Options } from 'storybook/internal/types';
 
 import type {
@@ -73,9 +74,11 @@ export async function commonConfig(
     ...(options.cacheKey
       ? { cacheDir: resolvePathInStorybookCache('sb-vite', options.cacheKey) }
       : {}),
-    // Pass build.target option from user's vite config
+    // Pass build.target option from user's vite config; fall back to Storybook's
+    // managed browser targets (which may be overridden at build time via the
+    // BROWSER_TARGETS_OVERRIDE environment variable).
     build: {
-      target: buildProperty?.target,
+      target: buildProperty?.target ?? getBrowserTargets(),
     },
   };
 
