@@ -18,52 +18,53 @@ const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
 const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
 const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
 
-type StoryDirectoryEntry = {
-  dir: string | string[];
+type StoryDirectoryMapping = {
+  dirs: string | string[];
   prefix?: string;
   files?: string;
 };
 
-const storyDirectoryEntries: StoryDirectoryEntry[] = [
-  { dir: '../core/template/stories', prefix: 'core' },
-  { dir: '../core/src/manager', prefix: 'manager' },
-  { dir: ['../core/src/preview-api', '../core/src/preview'], prefix: 'preview' },
-  { dir: '../core/src/shared', prefix: 'core/shared' },
-  { dir: '../core/src/components/brand', prefix: 'brand' },
-  { dir: '../core/src/components/components', prefix: 'components' },
-  { dir: '../core/src/component-testing/components', prefix: 'component-testing' },
-  { dir: '../core/src/controls/components', prefix: 'controls' },
-  { dir: '../core/src/highlight', prefix: 'highlight' },
-  { dir: '../core/src/actions/containers', prefix: 'actions' },
+const storyDirectoryMappings: StoryDirectoryMapping[] = [
+  { dirs: '../core/template/stories', prefix: 'core' },
+  { dirs: '../core/src/manager', prefix: 'manager' },
+  { dirs: ['../core/src/preview-api', '../core/src/preview'], prefix: 'preview' },
+  { dirs: '../core/src/shared', prefix: 'core/shared' },
+  { dirs: '../core/src/components/brand', prefix: 'brand' },
+  { dirs: '../core/src/components/components', prefix: 'components' },
+  { dirs: '../core/src/component-testing/components', prefix: 'component-testing' },
+  { dirs: '../core/src/controls/components', prefix: 'controls' },
+  { dirs: '../core/src/highlight', prefix: 'highlight' },
+  { dirs: '../core/src/actions/containers', prefix: 'actions' },
   {
-    dir: ['../addons/a11y/src', '../addons/a11y/template/stories'],
+    dirs: ['../addons/a11y/src', '../addons/a11y/template/stories'],
     prefix: 'addons/accessibility',
   },
   {
-    dir: ['../addons/docs/template/stories', '../addons/docs/src'],
+    dirs: ['../addons/docs/template/stories', '../addons/docs/src'],
     prefix: 'addons/docs',
   },
-  { dir: '../addons/links/template/stories', prefix: 'addons/links' },
-  { dir: '../addons/themes/template/stories', prefix: 'addons/themes' },
-  { dir: '../addons/onboarding/src', prefix: 'addons/onboarding' },
-  { dir: '../addons/onboarding/example-stories' },
-  { dir: '../addons/pseudo-states/src', prefix: 'addons/pseudo-states' },
+  { dirs: '../addons/links/template/stories', prefix: 'addons/links' },
+  { dirs: '../addons/themes/template/stories', prefix: 'addons/themes' },
+  { dirs: '../addons/onboarding/src', prefix: 'addons/onboarding' },
+  { dirs: '../addons/onboarding/example-stories' },
+  { dirs: '../addons/pseudo-states/src', prefix: 'addons/pseudo-states' },
   {
-    dir: ['../addons/vitest/src/components', '../addons/vitest/template/stories'],
+    dirs: ['../addons/vitest/src/components', '../addons/vitest/template/stories'],
     prefix: 'addons/vitest',
   },
-  { dir: '../addons/vitest/src', prefix: 'addons/vitest', files: 'stories.tsx' },
+  { dirs: '../addons/vitest/src', prefix: 'addons/vitest', files: 'stories.tsx' },
 ] as const;
+
+const createStoryEntries = ({ dirs, prefix, files }: StoryDirectoryMapping) =>
+  (Array.isArray(dirs) ? dirs : [dirs]).map((directory) => ({
+    directory,
+    ...(prefix ? { titlePrefix: prefix } : {}),
+    ...(files ? { files } : {}),
+  }));
 
 const stories = [
   './bench/*.stories.@(js|jsx|ts|tsx)',
-  ...storyDirectoryEntries.flatMap(({ dir, prefix, files }) =>
-    (Array.isArray(dir) ? dir : [dir]).map((directory) => ({
-      directory,
-      ...(prefix ? { titlePrefix: prefix } : {}),
-      ...(files ? { files } : {}),
-    }))
-  ),
+  ...storyDirectoryMappings.flatMap(createStoryEntries),
 ];
 
 const config = defineMain({
