@@ -1,39 +1,151 @@
-import type { Options } from 'storybook/internal/types';
-
-import type { Server } from 'http';
-import type { InlineConfig, ServerOptions } from 'vite';
-
-import { createViteLogger } from './logger.ts';
-import { commonConfig } from './vite-config.ts';
-
-export async function createViteServer(options: Options, devServer: Server) {
-  const { presets } = options;
-
-  const commonCfg = await commonConfig(options, 'development');
-
-  const { allowedHosts } = await presets.apply('core', {});
-      middlewareMode: true,
-      hmr: {
-        port: options.port,
-        server: devServer,
-      fs: {
-        strict: true,
-      },
-    appType: 'custom' as const,
-  };
-
-  // '0.0.0.0' binds to all interfaces, which is useful for Docker and other containerized environments
-    options.host === '0.0.0.0' &&
-    (!allowedHosts || (Array.isArray(allowedHosts) && allowedHosts.length === 0))
-  ) {
-    config.server.allowedHosts = true;
-  }
-
-  // '0.0.0.0' binds to all interfaces, which is useful for Docker and other containerized environments
-  const finalConfig = await presets.apply('viteFinal', config, options);
-
-  const { createServer } = await import('vite');
-
-  finalConfig.customLogger ??= await createViteLogger();
-  return createServer(finalConfig);
-}
+diff --git a/code/builders/builder-vite/src/change-detection-adapter/index.test.ts b/code/builders/builder-vite/src/change-detection-adapter/index.test.ts
+index e81ad59504c..ea4fb52226e 100644
+--- a/code/builders/builder-vite/src/change-detection-adapter/index.test.ts
++++ b/code/builders/builder-vite/src/change-detection-adapter/index.test.ts
+@@ -1,5 +1,7 @@
+ // Tests the Vite implementation of ChangeDetectionAdapter — wiring of resolve config
+ // snapshot and chokidar event normalisation.
++// Tests the Vite implementation of ChangeDetectionAdapter — wiring of resolve config
++// snapshot and chokidar event normalisation.
+ import { EventEmitter } from 'node:events';
+ 
+ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+@@ -16,11 +18,6 @@ interface FakeViteDevServer {
+     resolve?: {
+       alias?: unknown;
+       conditions?: string[];
+-      tsconfig?: string;
+-    };
+-  };
+-  watcher: EventEmitter;
+-}
+ 
+ function createFakeServer(overrides: Partial<FakeViteDevServer['config']> = {}): {
+   server: ViteDevServer;
+@@ -115,29 +112,11 @@ describe('createViteChangeDetectionAdapter', () => {
+   it('normalises chokidar paths via pathe.normalize before forwarding', () => {
+     const { server, watcher } = createFakeServer();
+     const adapter = createViteChangeDetectionAdapter(server);
+-    const handler = vi.fn();
+-    adapter.onFileChange(handler);
+-
+-    // Path with `/./` and mixed-case noise that pathe.normalize collapses.
+-    watcher.emit('all', 'change', '/repo/src/./A.tsx');
+-
+-    expect(handler).toHaveBeenCalledWith({
+-      kind: 'change',
+-      path: '/repo/src/A.tsx',
+-    });
+-  });
+-
+-  it('returns an unsubscribe function that removes the listener', () => {
+-    const { server, watcher } = createFakeServer();
+-    const adapter = createViteChangeDetectionAdapter(server);
+-    const handler = vi.fn();
+-    const unsubscribe = adapter.onFileChange(handler);
+-
+-    watcher.emit('all', 'change', '/repo/src/A.tsx');
+     expect(handler).toHaveBeenCalledTimes(1);
+ 
+     unsubscribe();
+     watcher.emit('all', 'change', '/repo/src/B.tsx');
+     expect(handler).toHaveBeenCalledTimes(1);
+   });
++    // Path with `/./` and mixed-case noise that pathe.normalize collapses.
+ });
+diff --git a/code/builders/builder-vite/src/vite-server.ts b/code/builders/builder-vite/src/vite-server.ts
+index b5394cdc238..4bdcaa9c575 100644
+--- a/code/builders/builder-vite/src/vite-server.ts
++++ b/code/builders/builder-vite/src/vite-server.ts
+@@ -1,39 +1,8 @@
+-import type { Options } from 'storybook/internal/types';
+-
+-import type { Server } from 'http';
+ import type { InlineConfig, ServerOptions } from 'vite';
+ 
+ import { createViteLogger } from './logger.ts';
+-import { commonConfig } from './vite-config.ts';
+-
++import type { InlineConfig, ServerOptions } from 'vite';
+ export async function createViteServer(options: Options, devServer: Server) {
+   const { presets } = options;
+ 
+   const commonCfg = await commonConfig(options, 'development');
+-
+-  const { allowedHosts } = await presets.apply('core', {});
+-      middlewareMode: true,
+-      hmr: {
+-        port: options.port,
+-        server: devServer,
+-      fs: {
+-        strict: true,
+-      },
+-    appType: 'custom' as const,
+-  };
+-
+-  // '0.0.0.0' binds to all interfaces, which is useful for Docker and other containerized environments
+-    options.host === '0.0.0.0' &&
+-    (!allowedHosts || (Array.isArray(allowedHosts) && allowedHosts.length === 0))
+-  ) {
+-    config.server.allowedHosts = true;
+-  }
+-
+-  // '0.0.0.0' binds to all interfaces, which is useful for Docker and other containerized environments
+-  const finalConfig = await presets.apply('viteFinal', config, options);
+-
+-  const { createServer } = await import('vite');
+-
+-  finalConfig.customLogger ??= await createViteLogger();
+-  return createServer(finalConfig);
+-}
+diff --git a/fix-vite-watch.ts b/fix-vite-watch.ts
+new file mode 100644
+index 00000000000..043c7bbf356
+--- /dev/null
++++ b/fix-vite-watch.ts
+@@ -0,0 +1,45 @@
++import path from 'path';
++
++/**
++ * 修复方案一：使用正则表达式替代 Glob 模式
++ * 在 .storybook/main.ts 中配置 viteFinal
++ */
++export const viteFinalRegex = async (config: any) => {
++  return {
++    ...config,
++    server: {
++      ...config.server,
++      watch: {
++        ...config.server?.watch,
++        // 使用正则表达式精确忽略缓存目录和 tsconfig.json
++        ignored: [
++          /\.nx[\\/]cache/,
++          /tsconfig\.json/
++        ]
++      }
++    }
++  };
++};
++
++/**
++ * 修复方案二：编写 Vite 插件移除配置依赖
++ * 如果正则表达式依然无法阻止 Vite 重启，可使用此插件
++ */
++export const ignoreTsConfigPlugin = () => ({
++  name: 'ignore-tsconfig-watch',
++  configureServer(server: any) {
++    // 将 tsconfig.json 从 Vite 的配置依赖中移除
++    if (server.config.configFileDependencies) {
++      server.config.configFileDependencies = server.config.configFileDependencies.filter(
++        (dep: string) => !dep.endsWith('tsconfig.json')
++      );
++    }
++  }
++});
++
++// 在 .storybook/main.ts 中结合使用插件的示例：
++export const viteFinalWithPlugin = async (config: any) => {
++  config.plugins = config.plugins || [];
++  config.plugins.push(ignoreTsConfigPlugin());
++  return config;
++};

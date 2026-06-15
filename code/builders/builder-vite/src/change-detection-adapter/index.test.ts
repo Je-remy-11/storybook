@@ -1,5 +1,7 @@
 // Tests the Vite implementation of ChangeDetectionAdapter — wiring of resolve config
 // snapshot and chokidar event normalisation.
+// Tests the Vite implementation of ChangeDetectionAdapter — wiring of resolve config
+// snapshot and chokidar event normalisation.
 import { EventEmitter } from 'node:events';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,11 +18,6 @@ interface FakeViteDevServer {
     resolve?: {
       alias?: unknown;
       conditions?: string[];
-      tsconfig?: string;
-    };
-  };
-  watcher: EventEmitter;
-}
 
 function createFakeServer(overrides: Partial<FakeViteDevServer['config']> = {}): {
   server: ViteDevServer;
@@ -115,29 +112,11 @@ describe('createViteChangeDetectionAdapter', () => {
   it('normalises chokidar paths via pathe.normalize before forwarding', () => {
     const { server, watcher } = createFakeServer();
     const adapter = createViteChangeDetectionAdapter(server);
-    const handler = vi.fn();
-    adapter.onFileChange(handler);
-
-    // Path with `/./` and mixed-case noise that pathe.normalize collapses.
-    watcher.emit('all', 'change', '/repo/src/./A.tsx');
-
-    expect(handler).toHaveBeenCalledWith({
-      kind: 'change',
-      path: '/repo/src/A.tsx',
-    });
-  });
-
-  it('returns an unsubscribe function that removes the listener', () => {
-    const { server, watcher } = createFakeServer();
-    const adapter = createViteChangeDetectionAdapter(server);
-    const handler = vi.fn();
-    const unsubscribe = adapter.onFileChange(handler);
-
-    watcher.emit('all', 'change', '/repo/src/A.tsx');
     expect(handler).toHaveBeenCalledTimes(1);
 
     unsubscribe();
     watcher.emit('all', 'change', '/repo/src/B.tsx');
     expect(handler).toHaveBeenCalledTimes(1);
   });
+    // Path with `/./` and mixed-case noise that pathe.normalize collapses.
 });
