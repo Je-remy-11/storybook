@@ -118,6 +118,14 @@ const reactStories = [
   },
 ];
 
+const vueStories = [
+  {
+    directory: '../../vue-components/src',
+    files: '**/*.stories.@(js|ts)',
+    titlePrefix: 'vue',
+  },
+];
+
 const commonConfig = {
   addons: [
     '@storybook/addon-onboarding',
@@ -145,7 +153,6 @@ const commonConfig = {
     developmentModeForBuild: true,
     experimentalTestSyntax: true,
     experimentalDocgenServer: true,
-    experimentalReactComponentMeta: true,
     changeDetection: true,
   },
   staticDirs: [{ from: './bench/bundle-analyzer', to: '/bundle-analyzer' }],
@@ -169,6 +176,10 @@ const createReactViteConfig = (): StorybookConfig => ({
   framework: {
     name: '@storybook/react-vite',
     options: {},
+  },
+  features: {
+    ...commonConfig.features,
+    experimentalReactComponentMeta: true,
   },
   refs: vueStorybookUrl
     ? {
@@ -214,13 +225,7 @@ const createReactViteConfig = (): StorybookConfig => ({
 
 const createVueViteConfig = (): StorybookConfig => ({
   ...commonConfig,
-  stories: [
-    {
-      directory: '../../vue-components/src',
-      files: '**/*.stories.@(js|ts)',
-      titlePrefix: 'vue',
-    },
-  ],
+  stories: vueStories,
   previewAnnotations: ['./core/template/stories/preview.ts'],
   framework: {
     name: '@storybook/vue3-vite',
@@ -236,6 +241,9 @@ const createVueViteConfig = (): StorybookConfig => ({
     const { mergeConfig } = await import('vite');
 
     return mergeConfig(viteConfig, {
+      resolve: {
+        dedupe: ['vue'],
+      },
       plugins: [vue()],
       build: {
         sourcemap: process.env.CI !== 'true',
