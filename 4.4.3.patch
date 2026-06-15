@@ -1,31 +1,72 @@
-import type { StorybookConfig } from '@storybook/react-vite';
-import { mergeConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-
-const config: StorybookConfig = {
-  stories: [
-    // 保持原有 React stories
-    '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)',
-    // 增加 Vue stories 路径
-    '../vue-components/src/**/*.stories.@(js|ts)'
-  ],
-  framework: {
-    // 核心冲突点：此处必须保持 react-vite，不能同时写 vue3-vite
-    name: '@storybook/react-vite',
-    options: {},
-  },
-  async viteFinal(config) {
-    // 注入 Vue 插件以编译 .vue 文件
-    return mergeConfig(config, {
-      plugins: [vue()],
-      resolve: {
-        alias: {
-          // 确保 vue 被正确解析
-          vue: 'vue/dist/vue.esm-bundler.js',
-        },
-      },
-    });
-  },
-};
-
-export default config;
+diff --git a/4.4.3.patch b/4.4.3.patch
+index f3cb3f91032..e69de29bb2d 100644
+--- a/4.4.3.patch
++++ b/4.4.3.patch
+@@ -1,31 +0,0 @@
+-import type { StorybookConfig } from '@storybook/react-vite';
+-import { mergeConfig } from 'vite';
+-import vue from '@vitejs/plugin-vue';
+-
+-const config: StorybookConfig = {
+-  stories: [
+-    // 保持原有 React stories
+-    '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)',
+-    // 增加 Vue stories 路径
+-    '../vue-components/src/**/*.stories.@(js|ts)'
+-  ],
+-  framework: {
+-    // 核心冲突点：此处必须保持 react-vite，不能同时写 vue3-vite
+-    name: '@storybook/react-vite',
+-    options: {},
+-  },
+-  async viteFinal(config) {
+-    // 注入 Vue 插件以编译 .vue 文件
+-    return mergeConfig(config, {
+-      plugins: [vue()],
+-      resolve: {
+-        alias: {
+-          // 确保 vue 被正确解析
+-          vue: 'vue/dist/vue.esm-bundler.js',
+-        },
+-      },
+-    });
+-  },
+-};
+-
+-export default config;
+diff --git a/code/.storybook-vue/main.ts b/code/.storybook-vue/main.ts
+new file mode 100644
+index 00000000000..4c8fa7fe8a8
+--- /dev/null
++++ b/code/.storybook-vue/main.ts
+@@ -0,0 +1,15 @@
++import type { StorybookConfig } from '@storybook/vue3-vite';
++
++const config: StorybookConfig = {
++  stories: ['../../vue-components/src/**/*.stories.@(js|ts)'],
++  addons: [
++    '@storybook/addon-links',
++    '@storybook/addon-essentials',
++  ],
++  framework: {
++    name: '@storybook/vue3-vite',
++    options: {},
++  },
++};
++
++export default config;
+diff --git a/code/.storybook/main.ts b/code/.storybook/main.ts
+index 855f343f070..cb63d435fac 100644
+--- a/code/.storybook/main.ts
++++ b/code/.storybook/main.ts
+@@ -148,6 +148,10 @@ const config = defineMain({
+       url: 'https://main--64b56e737c0aeefed9d5e675.chromatic.com',
+       expanded: false,
+     },
++    'vue-components': {
++      title: 'Vue 3 Components',
++      url: process.env.NODE_ENV === 'development' ? 'http://localhost:6007' : '/vue-storybook/',
++    },
+   },
+   },
+   framework: {
