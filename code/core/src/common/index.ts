@@ -48,6 +48,7 @@ export * from './utils/scan-and-transform-files.ts';
 export * from './utils/transform-imports.ts';
 export * from '../shared/utils/module.ts';
 export * from './utils/get-addon-names.ts';
+export { getBrowserTargets } from '../shared/constants/environments-support.ts';
 export * from './utils/utils.ts';
 export * from './utils/command.ts';
 export * from './node-version.ts';

@@ -1,6 +1,9 @@
 import { resolve } from 'node:path';
 
-import { getBuilderOptions, resolvePathInStorybookCache } from 'storybook/internal/common';
+import { getBuilderOptions, getBrowserTargets, resolvePathInStorybookCache } from 'storybook/internal/common';
+import type {
+  ConfigEnv,
+  InlineConfig,
   PluginOption,
   UserConfig as ViteConfig,
   InlineConfig as ViteInlineConfig,
@@ -14,6 +17,7 @@ import {
 } from './plugins/index.ts';
 import { viteCorePlugins as corePlugins } from './preset.ts';
 import type { BuilderOptions } from './types.ts';
+import type { Options } from 'storybook/internal/types';
 
 export type PluginConfigType = 'build' | 'development';
 
@@ -75,11 +79,10 @@ export async function commonConfig(
     base: './',
     // Pass build.target option from user's vite config
     ...(options.cacheKey
-      target: buildProperty?.target,
+      ? { cacheDir: resolvePathInStorybookCache('.sb-vite', options.cacheKey) }
       : {}),
-    // Pass build.target option from user's vite config
     build: {
-      target: buildProperty?.target,
+      target: buildProperty?.target ?? getBrowserTargets(),
     },
   };
 
