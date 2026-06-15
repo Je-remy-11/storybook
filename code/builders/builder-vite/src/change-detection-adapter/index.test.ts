@@ -1,5 +1,3 @@
-// Tests the Vite implementation of ChangeDetectionAdapter — wiring of resolve config
-// snapshot and chokidar event normalisation.
 import { EventEmitter } from 'node:events';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +15,11 @@ interface FakeViteDevServer {
       alias?: unknown;
       conditions?: string[];
       tsconfig?: string;
+    };
+    server?: {
+      watch?: {
+        ignored?: unknown;
+      };
     };
   };
   watcher: EventEmitter;
@@ -112,13 +115,31 @@ describe('createViteChangeDetectionAdapter', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it('does not forward paths matched by server.watch.ignored', () => {
+    const { server, watcher } = createFakeServer({
+      server: {
+        watch: {
+          ignored: ['**/tsconfig.json'],
+        },
+      },
+    });
+    const adapter = createViteChangeDetectionAdapter(server);
+    const handler = vi.fn();
+    adapter.onFileChange(handler);
+
+    watcher.emit('all', 'change', '/repo/tsconfig.json');
+    watcher.emit('all', 'change', '/repo/src/A.tsx');
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith({ kind: 'change', path: '/repo/src/A.tsx' });
+  });
+
   it('normalises chokidar paths via pathe.normalize before forwarding', () => {
     const { server, watcher } = createFakeServer();
     const adapter = createViteChangeDetectionAdapter(server);
     const handler = vi.fn();
     adapter.onFileChange(handler);
 
-    // Path with `/./` and mixed-case noise that pathe.normalize collapses.
     watcher.emit('all', 'change', '/repo/src/./A.tsx');
 
     expect(handler).toHaveBeenCalledWith({

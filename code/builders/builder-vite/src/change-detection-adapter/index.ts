@@ -1,12 +1,63 @@
+import { relative } from 'node:path';
+
 import type {
   ChangeDetectionAdapter,
   FileChangeEvent,
   ModuleResolveConfig,
 } from 'storybook/internal/core-server';
+import { globToRegexp } from 'storybook/internal/common';
 import { logger } from 'storybook/internal/node-logger';
 
 import { normalize } from 'pathe';
 import type { ViteDevServer } from 'vite';
+
+function stripLeadingPathPrefix(path: string) {
+  return path.replace(/^[./\\]+/, '');
+}
+
+function createIgnoredPathMatcher(server: ViteDevServer): ((path: string) => boolean) | undefined {
+  const ignored = server.config.server?.watch?.ignored;
+
+  if (!ignored) {
+    return undefined;
+  }
+
+  const ignoredEntries = Array.isArray(ignored) ? ignored : [ignored];
+  const root = normalize(server.config.root);
+  const matchers = ignoredEntries.flatMap<(path: string) => boolean>((entry) => {
+    if (typeof entry === 'string') {
+      const regexp = globToRegexp(entry);
+      return [(candidate) => regexp.test(candidate)];
+    }
+
+    if (entry instanceof RegExp) {
+      return [(candidate) => entry.test(candidate)];
+    }
+
+    if (typeof entry === 'function') {
+      return [(candidate) => Boolean(entry(candidate))];
+    }
+
+    return [];
+  });
+
+  if (matchers.length === 0) {
+    return undefined;
+  }
+
+  return (path: string) => {
+    const normalizedPath = normalize(path);
+    const relativePath = normalize(relative(root, normalizedPath));
+    const candidates = new Set([
+      normalizedPath,
+      stripLeadingPathPrefix(normalizedPath),
+      relativePath,
+      `./${relativePath}`,
+    ]);
+
+    return [...candidates].some((candidate) => matchers.some((matcher) => matcher(candidate)));
+  };
+}
 
 /**
  * Vite implementation of {@link ChangeDetectionAdapter}.
@@ -18,6 +69,8 @@ import type { ViteDevServer } from 'vite';
  *   `ready`, `raw`, `error`) are intentionally filtered out.
  */
 export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeDetectionAdapter {
+  const isIgnoredPath = createIgnoredPathMatcher(server);
+
   return {
     /**
      * Snapshots the Vite resolver configuration (aliases, conditions, root) once at
@@ -33,9 +86,6 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
         'Change detection: snapshotting Vite resolve config (restart required if vite.config.ts changes)'
       );
       const resolveOpts = server.config.resolve;
-      // Vite normalises `resolve.alias` to its array form (`Array<{find, replacement, ...}>`)
-      // before we ever see it. The detector accepts both Record and Array shapes, so we pass
-      // the array through unchanged.
       const alias = resolveOpts?.alias as ModuleResolveConfig['alias'];
       const conditions = resolveOpts?.conditions;
 
@@ -46,7 +96,7 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
       };
     },
 
-    onFileChange(handler) {
+    onFileChange(handler: (event: FileChangeEvent) => void) {
       const FORWARDED_EVENTS = new Set<FileChangeEvent['kind']>(['add', 'change', 'unlink']);
       const isForwardedEvent = (name: string): name is FileChangeEvent['kind'] =>
         FORWARDED_EVENTS.has(name as FileChangeEvent['kind']);
@@ -55,8 +105,15 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
         if (!isForwardedEvent(eventName)) {
           return;
         }
-        handler({ kind: eventName, path: normalize(path) });
+
+        const normalizedPath = normalize(path);
+        if (isIgnoredPath?.(normalizedPath)) {
+          return;
+        }
+
+        handler({ kind: eventName, path: normalizedPath });
       };
+
       server.watcher.on('all', onAll);
       return () => {
         server.watcher.off('all', onAll);

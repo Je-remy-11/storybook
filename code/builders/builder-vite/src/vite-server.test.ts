@@ -1,6 +1,6 @@
 import type { Server } from 'http';
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Channel } from 'storybook/internal/channels';
 import type { Options, Presets } from 'storybook/internal/types';
@@ -47,6 +47,10 @@ const baseOptions: Options = {
 };
 
 describe('createViteServer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('preserves user server.watch.ignored when applying Storybook server defaults', async () => {
     commonConfigMock.mockResolvedValueOnce({
       root: '/repo',
@@ -83,5 +87,49 @@ describe('createViteServer', () => {
     expect(result.server.allowedHosts).toEqual(['storybook.local']);
     expect(result.server.middlewareMode).toBe(true);
     expect(result.customLogger).toBeDefined();
+  });
+
+  it('unwatches ignored paths already tracked by Vite and filters future watcher.add calls', async () => {
+    commonConfigMock.mockResolvedValueOnce({
+      root: '/repo',
+      server: {
+        watch: {
+          ignored: ['**/tsconfig.json'],
+        },
+      },
+    });
+
+    const originalAdd = vi.fn();
+    const unwatch = vi.fn();
+    const watcher = {
+      add: originalAdd,
+      unwatch,
+      getWatched: vi.fn(() => ({
+        '/repo': ['tsconfig.json', 'package.json'],
+      })),
+    } as any;
+    originalAdd.mockImplementation((paths: string | string[]) => {
+      expect(paths).toEqual(['/repo/src/Button.tsx']);
+      return watcher;
+    });
+
+    const viteServer = {
+      config: {
+        root: '/repo',
+        server: {
+          watch: {
+            ignored: ['**/tsconfig.json'],
+          },
+        },
+      },
+      watcher,
+    } as any;
+    createServerMock.mockResolvedValueOnce(viteServer);
+
+    const result = await createViteServer(baseOptions, {} as Server);
+
+    expect(unwatch).toHaveBeenCalledWith(['/repo/tsconfig.json']);
+    result.watcher.add(['/repo/tsconfig.json', '/repo/src/Button.tsx']);
+    expect(originalAdd).toHaveBeenCalledTimes(1);
   });
 });
