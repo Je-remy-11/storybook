@@ -2,35 +2,34 @@ import type { Options } from 'storybook/internal/types';
 import type { UserConfig as ViteConfig } from 'vite';
 
 /**
- * 一个示例 viteFinal 函数，用于演示测试需求
- * 
- * @param config - 原始 Vite 配置
- * @param options - Storybook 选项对象
- * @returns 处理后的 Vite 配置
+ * Dev-only resolve aliases for Storybook packages. These are only added in
+ * DEVELOPMENT mode so that HMR paths stay predictable. In PRODUCTION builds,
+ * the real package exports are used instead.
+ */
+const DEV_ALIASES = {
+  'storybook/theming': 'storybook/theming',
+  'storybook/manager-api': 'storybook/manager-api',
+  'storybook/preview-api': 'storybook/preview-api',
+  'storybook/internal/theming': 'storybook/internal/theming',
+} as const;
+
+/**
+ * Example viteFinal hook used by the accompanying unit test. In real
+ * frameworks the hook is usually provided by the framework preset.
  */
 export const viteFinal = async (
   config: ViteConfig,
   options: Options
 ): Promise<ViteConfig> => {
   const { configType } = options;
-  
-  // 配置别名，仅在开发模式下添加
-  const alias = configType === 'DEVELOPMENT'
-    ? {
-        ...config.resolve?.alias,
-        // 添加 storybook 相关别名
-        'storybook/theming': 'storybook/theming',
-        'storybook/manager-api': 'storybook/manager-api',
-        'storybook/preview-api': 'storybook/preview-api',
-        'storybook/internal/theming': 'storybook/internal/theming',
-        // 可以继续添加其他需要的别名
-      }
-    : config.resolve?.alias;
-  
-  // 根据 CI 环境设置 sourcemap
+
+  const alias =
+    configType === 'DEVELOPMENT'
+      ? { ...config.resolve?.alias, ...DEV_ALIASES }
+      : config.resolve?.alias;
+
   const sourcemap = process.env.CI ? true : (config.build?.sourcemap ?? true);
-  
-  // 返回合并后的配置
+
   return {
     ...config,
     resolve: {

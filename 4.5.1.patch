@@ -1,196 +1,334 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { defineMain } from '@storybook/react-vite/node';
-import type { Options } from 'storybook/internal/types';
-
-import react from '@vitejs/plugin-react';
-
-import { BROWSER_TARGETS } from '../core/src/shared/constants/environments-support.ts';
-
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = dirname(currentFilePath);
-
-const componentsPath = join(currentDirPath, '../core/src/components/index.ts');
-const managerApiPath = join(currentDirPath, '../core/src/manager-api/index.mock.ts');
-const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
-const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
-const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
-
-const config = defineMain({
-  stories: [
-    './bench/*.stories.@(js|jsx|ts|tsx)',
-    {
-      directory: '../core/template/stories',
-      titlePrefix: 'core',
-    },
-    {
-      directory: '../core/src/manager',
-      titlePrefix: 'manager',
-    },
-    {
-      directory: '../core/src/preview-api',
-      titlePrefix: 'preview',
-    },
-    {
-      directory: '../core/src/preview',
-      titlePrefix: 'preview',
-    },
-    {
-      directory: '../core/src/shared',
-      titlePrefix: 'core/shared',
-    },
-    {
-      directory: '../core/src/components/brand',
-      titlePrefix: 'brand',
-    },
-    {
-      directory: '../core/src/components/components',
-      titlePrefix: 'components',
-    },
-    {
-      directory: '../core/src/component-testing/components',
-      titlePrefix: 'component-testing',
-    },
-    {
-      directory: '../core/src/controls/components',
-      titlePrefix: 'controls',
-    },
-    {
-      directory: '../core/src/highlight',
-      titlePrefix: 'highlight',
-    },
-    {
-      directory: '../core/src/actions/containers',
-      titlePrefix: 'actions',
-    },
-    {
-      directory: '../addons/a11y/src',
-      titlePrefix: 'addons/accessibility',
-    },
-    {
-      directory: '../addons/a11y/template/stories',
-      titlePrefix: 'addons/accessibility',
-    },
-    {
-      directory: '../addons/docs/template/stories',
-      titlePrefix: 'addons/docs',
-    },
-    {
-      directory: '../addons/docs/src',
-      titlePrefix: 'addons/docs',
-    },
-    {
-      directory: '../addons/links/template/stories',
-      titlePrefix: 'addons/links',
-    },
-    {
-      directory: '../addons/themes/template/stories',
-      titlePrefix: 'addons/themes',
-    },
-    {
-      directory: '../addons/onboarding/src',
-      titlePrefix: 'addons/onboarding',
-    },
-    {
-      directory: '../addons/onboarding/example-stories',
-    },
-    {
-      directory: '../addons/pseudo-states/src',
-      titlePrefix: 'addons/pseudo-states',
-    },
-    {
-      directory: '../addons/vitest/src/components',
-      titlePrefix: 'addons/vitest',
-    },
-    {
-      directory: '../addons/vitest/template/stories',
-      titlePrefix: 'addons/vitest',
-    },
-    {
-      directory: '../addons/vitest/src',
-      titlePrefix: 'addons/vitest',
-      files: 'stories.tsx',
-    },
-  ],
-    '@storybook/addon-vitest',
-    '@storybook/addon-a11y',
-    '@storybook/addon-mcp',
-    'storybook-addon-pseudo-states',
-    '@chromatic-com/storybook',
-    './services-preset.ts',
-  ],
-  previewAnnotations: [
-    './core/template/stories/preview.ts',
-    './renderers/react/template/components/index.js',
-  ],
-  build: {
-    test: {
-      // we have stories for the blocks here, we can't exclude them
-      disableBlocks: false,
-      // some stories in blocks (ArgTypes, Controls) depends on argTypes inference
-      disableDocgen: false,
-    },
-  },
-      // we have stories for the blocks here, we can't exclude them
-  framework: {
-      // some stories in blocks (ArgTypes, Controls) depends on argTypes inference
-    name: '@storybook/react-vite',
-    options: {},
-  },
-  refs: {
-    icons: {
-      title: 'Icons',
-      url: 'https://main--64b56e737c0aeefed9d5e675.chromatic.com',
-      expanded: false,
-    },
-  },
-  core: {
-    disableTelemetry: true,
-    changeDetection: true,
-  },
-  features: {
-    developmentModeForBuild: true,
-    experimentalTestSyntax: true,
-    experimentalDocgenServer: true,
-    experimentalReactComponentMeta: true,
-    changeDetection: true,
-  },
-  staticDirs: [{ from: './bench/bundle-analyzer', to: '/bundle-analyzer' }],
-  viteFinal: async (viteConfig: InlineConfig, { configType }: Options) => {
-    const { mergeConfig } = await import('vite');
-
-    return mergeConfig(viteConfig, {
-      resolve: {
-        alias:
-          configType === 'DEVELOPMENT'
-            ? {
-                'storybook/internal/components': componentsPath,
-                'storybook/manager-api': managerApiPath,
-                'storybook/theming/create': themingCreatePath,
-                'storybook/theming': themingPath,
-                'sb-original/image-context': imageContextPath,
-              }
-            : {
-                'storybook/manager-api': managerApiPath,
-              },
-      },
-      plugins: [react()],
-      build: {
-        // disable sourcemaps in CI to not run out of memory
-        sourcemap: process.env.CI !== 'true',
-      plugins: [react()],
-      },
-        // disable sourcemaps in CI to not run out of memory
-      server: {
-        watch: {
-          // Something odd happens with tsconfig and nx which causes Storybook to keep reloading, so we ignore them
-          ignored: ['**/.nx/cache/**', '**/tsconfig.json'],
-        },
-          // Something odd happens with tsconfig and nx which causes Storybook to keep reloading, so we ignore them
-      },
-    } satisfies typeof viteConfig);
-  },
-});
-
-export default config;
+diff --git a/code/builders/builder-vite/src/vite-final-example.test.ts b/code/builders/builder-vite/src/vite-final-example.test.ts
+index ed8dc9af9cc..fa6e2ca6939 100644
+--- a/code/builders/builder-vite/src/vite-final-example.test.ts
++++ b/code/builders/builder-vite/src/vite-final-example.test.ts
+@@ -1,209 +1,88 @@
+-import { describe, expect, it, vi, beforeEach } from 'vitest';
+-import { Channel } from 'storybook/internal/channels';
+-import type { Options, Presets } from 'storybook/internal/types';
++import { describe, expect, it, vi } from 'vitest';
++
++import type { Options } from 'storybook/internal/types';
++import type { UserConfig as ViteConfig } from 'vite';
++
+ import { viteFinal } from './vite-final-example.ts';
+ 
+-// 模拟 process.env
+-const mockEnv = vi.hoisted(() => ({
+-  CI: undefined,
+-}));
++const DEV_ALIAS_KEYS = [
++  'storybook/theming',
++  'storybook/manager-api',
++  'storybook/preview-api',
++  'storybook/internal/theming',
++];
+ 
+-vi.stubEnv('CI', mockEnv.CI);
++const createOptions = (configType: 'DEVELOPMENT' | 'PRODUCTION'): Options =>
++  ({ configType }) as Options;
+ 
+-// 创建一个基础的 options 对象
+-const createMockOptions = (configType: 'DEVELOPMENT' | 'PRODUCTION'): Options => ({
+-  configType,
+-  configDir: '/test/.storybook',
+-  packageJson: {},
+-  channel: new Channel({}),
+-  presets: {
+-    apply: vi.fn(),
+-  } as Presets,
+-  presetsList: [],
++const baseConfig = (): ViteConfig => ({
++  resolve: { alias: {} },
++  build: {},
+ });
+ 
+ describe('viteFinal', () => {
+-  // 每个测试前重置 mock
+-  beforeEach(() => {
+-    mockEnv.CI = undefined;
+-    vi.stubEnv('CI', '');
+-  });
+-
+-  describe('开发模式 (configType = DEVELOPMENT)', () => {
+-    it('应该在 resolve.alias 中包含 storybook 相关别名', async () => {
+-      const mockOptions = createMockOptions('DEVELOPMENT');
+-      const baseConfig = {
+-        resolve: { alias: {} },
+-        build: {},
+-      };
+-      
+-      const result = await viteFinal(baseConfig, mockOptions);
+-      
+-      // 验证别名是否正确添加
+-      expect(result.resolve?.alias).toHaveProperty('storybook/theming');
+-      expect(result.resolve?.alias).toHaveProperty('storybook/manager-api');
+-      expect(result.resolve?.alias).toHaveProperty('storybook/preview-api');
+-      expect(result.resolve?.alias).toHaveProperty('storybook/internal/theming');
++  describe('resolve.alias', () => {
++    it('adds storybook aliases in DEVELOPMENT mode', async () => {
++      const result = await viteFinal(baseConfig(), createOptions('DEVELOPMENT'));
++      const aliasKeys = Object.keys(result.resolve?.alias ?? {});
++      DEV_ALIAS_KEYS.forEach((key) => {
++        expect(aliasKeys).toContain(key);
++      });
+     });
+ 
+-    it('应该保留用户原始配置的别名', async () => {
+-      const mockOptions = createMockOptions('DEVELOPMENT');
+-      const baseConfig = {
+-        resolve: { 
+-          alias: { 
+-            '@components': '/src/components',
+-            '@utils': '/src/utils' 
+-          } 
+-        },
+-        build: {},
+-      };
+-      
+-      const result = await viteFinal(baseConfig, mockOptions);
+-      
+-      // 验证用户原始别名是否被保留
+-      expect(result.resolve?.alias).toHaveProperty('@components', '/src/components');
+-      expect(result.resolve?.alias).toHaveProperty('@utils', '/src/utils');
++    it('does not add storybook aliases in PRODUCTION mode', async () => {
++      const result = await viteFinal(baseConfig(), createOptions('PRODUCTION'));
++      const aliasKeys = Object.keys(result.resolve?.alias ?? {});
++      DEV_ALIAS_KEYS.forEach((key) => {
++        expect(aliasKeys).not.toContain(key);
++      });
+     });
+-  });
+ 
+-  describe('生产模式 (configType = PRODUCTION)', () => {
+-    it('不应该在 resolve.alias 中包含额外的 storybook 别名', async () => {
+-      const mockOptions = createMockOptions('PRODUCTION');
+-      const baseConfig = {
+-        resolve: { alias: {} },
++    it('preserves user-provided aliases in both modes', async () => {
++      const userAliases = { '@components': '/src/components', '@utils': '/src/utils' };
++      const configWithUserAliases: ViteConfig = {
++        resolve: { alias: userAliases },
+         build: {},
+       };
+-      
+-      const result = await viteFinal(baseConfig, mockOptions);
+-      
+-      // 验证额外的别名是否没有被添加
+-      expect(result.resolve?.alias).not.toHaveProperty('storybook/theming');
+-      expect(result.resolve?.alias).not.toHaveProperty('storybook/manager-api');
+-      expect(result.resolve?.alias).not.toHaveProperty('storybook/preview-api');
+-      expect(result.resolve?.alias).not.toHaveProperty('storybook/internal/theming');
+-    });
+ 
+-    it('应该保留用户原始配置的别名', async () => {
+-      const mockOptions = createMockOptions('PRODUCTION');
+-      const baseConfig = {
+-        resolve: { 
+-          alias: { 
+-            '@components': '/src/components',
+-            '@utils': '/src/utils' 
+-          } 
+-        },
+-        build: {},
+-      };
+-      
+-      const result = await viteFinal(baseConfig, mockOptions);
+-      
+-      // 验证用户原始别名是否被保留
+-      expect(result.resolve?.alias).toHaveProperty('@components', '/src/components');
+-      expect(result.resolve?.alias).toHaveProperty('@utils', '/src/utils');
++      const devResult = await viteFinal(configWithUserAliases, createOptions('DEVELOPMENT'));
++      const prodResult = await viteFinal(configWithUserAliases, createOptions('PRODUCTION'));
++
++      expect(devResult.resolve?.alias).toMatchObject(userAliases);
++      expect(prodResult.resolve?.alias).toMatchObject(userAliases);
+     });
+   });
+ 
+-  describe('build.sourcemap 配置', () => {
+-    it('当 CI 环境变量设置为 true 时，sourcemap 应该为 true', async () => {
+-      // 设置 CI 环境变量
+-      mockEnv.CI = 'true';
++  describe('build.sourcemap', () => {
++    it('forces sourcemap to true when CI is set', async () => {
+       vi.stubEnv('CI', 'true');
+-      
+-      const mockOptions = createMockOptions('DEVELOPMENT');
+-      const baseConfig = {
+-        resolve: { alias: {} },
+-        build: { sourcemap: false }, // 即使用户设置为 false，CI 环境下也应该为 true
+-      };
+-      
+-      const result = await viteFinal(baseConfig, mockOptions);
+-      
++      const config = { ...baseConfig(), build: { sourcemap: false } };
++      const result = await viteFinal(config, createOptions('DEVELOPMENT'));
+       expect(result.build?.sourcemap).toBe(true);
++      vi.unstubAllEnvs();
+     });
+ 
+-    it('当 CI 环境变量未设置时，应该使用用户的 sourcemap 配置或默认值 true', async () => {
+-      // 未设置 CI 环境变量
+-      const mockOptions = createMockOptions('DEVELOPMENT');
+-      
+-      // 测试用户设置 sourcemap 为 false 的情况
+-      const configWithFalseSourcemap = {
+-        resolve: { alias: {} },
+-        build: { sourcemap: false },
+-      };
+-      
+-      const result1 = await viteFinal(configWithFalseSourcemap, mockOptions);
+-      expect(result1.build?.sourcemap).toBe(false);
+-      
+-      // 测试用户未设置 sourcemap 的情况，应该默认为 true
+-      const configWithoutSourcemap = {
+-        resolve: { alias: {} },
+-        build: {},
+-      };
+-      
+-      const result2 = await viteFinal(configWithoutSourcemap, mockOptions);
+-      expect(result2.build?.sourcemap).toBe(true);
+-      
+-      // 测试用户设置 sourcemap 为 'inline' 的情况
+-      const configWithInlineSourcemap = {
+-        resolve: { alias: {} },
+-        build: { sourcemap: 'inline' },
+-      };
+-      
+-      const result3 = await viteFinal(configWithInlineSourcemap, mockOptions);
+-      expect(result3.build?.sourcemap).toBe('inline');
++    it('defaults sourcemap to true when unset and CI is falsy', async () => {
++      vi.stubEnv('CI', '');
++      const result = await viteFinal(baseConfig(), createOptions('DEVELOPMENT'));
++      expect(result.build?.sourcemap).toBe(true);
++      vi.unstubAllEnvs();
+     });
+ 
+-    it('在生产模式下，sourcemap 也应该根据 CI 环境正确设置', async () => {
+-      const mockOptions = createMockOptions('PRODUCTION');
+-      
+-      // 测试 CI 环境下的生产模式
+-      mockEnv.CI = 'true';
+-      vi.stubEnv('CI', 'true');
+-      
+-      const resultCi = await viteFinal(
+-        { resolve: { alias: {} }, build: { sourcemap: false } }, 
+-        mockOptions
+-      );
+-      expect(resultCi.build?.sourcemap).toBe(true);
+-      
+-      // 测试非 CI 环境下的生产模式
+-      mockEnv.CI = '';
++    it('respects user sourcemap value when CI is falsy', async () => {
+       vi.stubEnv('CI', '');
+-      
+-      const resultNoCi = await viteFinal(
+-        { resolve: { alias: {} }, build: { sourcemap: 'hidden' } }, 
+-        mockOptions
+-      );
+-      expect(resultNoCi.build?.sourcemap).toBe('hidden');
++      const config = { ...baseConfig(), build: { sourcemap: 'inline' as const } };
++      const result = await viteFinal(config, createOptions('PRODUCTION'));
++      expect(result.build?.sourcemap).toBe('inline');
++      vi.unstubAllEnvs();
+     });
+-  });
+ 
+-  describe('完整配置验证', () => {
+-    it('应该正确合并所有配置，而不覆盖其他配置项', async () => {
+-      const mockOptions = createMockOptions('DEVELOPMENT');
+-      const baseConfig = {
+-        resolve: {
+-          alias: { '@test': '/test' },
+-          extensions: ['.ts', '.tsx', '.js', '.jsx'],
+-        },
+-        build: {
+-          sourcemap: 'inline',
+-          minify: 'terser',
+-        },
+-        server: {
+-          port: 6006,
+-        },
+-      };
+-      
+-      const result = await viteFinal(baseConfig, mockOptions);
+-      
+-      // 验证其他配置项是否被保留
+-      expect(result.resolve?.extensions).toEqual(['.ts', '.tsx', '.js', '.jsx']);
+-      expect(result.build?.minify).toBe('terser');
+-      expect(result.server?.port).toBe(6006);
+-      
+-      // 验证别名是否被正确添加
+-      expect(result.resolve?.alias).toHaveProperty('@test', '/test');
+-      expect(result.resolve?.alias).toHaveProperty('storybook/theming');
++    it('forces sourcemap to true in PRODUCTION when CI is set', async () => {
++      vi.stubEnv('CI', '1');
++      const config = { ...baseConfig(), build: { sourcemap: 'hidden' as const } };
++      const result = await viteFinal(config, createOptions('PRODUCTION'));
++      expect(result.build?.sourcemap).toBe(true);
++      vi.unstubAllEnvs();
+     });
+   });
+ });
+diff --git a/code/builders/builder-vite/src/vite-final-example.ts b/code/builders/builder-vite/src/vite-final-example.ts
+index 2cac473b1e4..aba6aa39d97 100644
+--- a/code/builders/builder-vite/src/vite-final-example.ts
++++ b/code/builders/builder-vite/src/vite-final-example.ts
+@@ -2,35 +2,34 @@ import type { Options } from 'storybook/internal/types';
+ import type { UserConfig as ViteConfig } from 'vite';
+ 
+ /**
+- * 一个示例 viteFinal 函数，用于演示测试需求
+- * 
+- * @param config - 原始 Vite 配置
+- * @param options - Storybook 选项对象
+- * @returns 处理后的 Vite 配置
++ * Dev-only resolve aliases for Storybook packages. These are only added in
++ * DEVELOPMENT mode so that HMR paths stay predictable. In PRODUCTION builds,
++ * the real package exports are used instead.
++ */
++const DEV_ALIASES = {
++  'storybook/theming': 'storybook/theming',
++  'storybook/manager-api': 'storybook/manager-api',
++  'storybook/preview-api': 'storybook/preview-api',
++  'storybook/internal/theming': 'storybook/internal/theming',
++} as const;
++
++/**
++ * Example viteFinal hook used by the accompanying unit test. In real
++ * frameworks the hook is usually provided by the framework preset.
+  */
+ export const viteFinal = async (
+   config: ViteConfig,
+   options: Options
+ ): Promise<ViteConfig> => {
+   const { configType } = options;
+-  
+-  // 配置别名，仅在开发模式下添加
+-  const alias = configType === 'DEVELOPMENT'
+-    ? {
+-        ...config.resolve?.alias,
+-        // 添加 storybook 相关别名
+-        'storybook/theming': 'storybook/theming',
+-        'storybook/manager-api': 'storybook/manager-api',
+-        'storybook/preview-api': 'storybook/preview-api',
+-        'storybook/internal/theming': 'storybook/internal/theming',
+-        // 可以继续添加其他需要的别名
+-      }
+-    : config.resolve?.alias;
+-  
+-  // 根据 CI 环境设置 sourcemap
++
++  const alias =
++    configType === 'DEVELOPMENT'
++      ? { ...config.resolve?.alias, ...DEV_ALIASES }
++      : config.resolve?.alias;
++
+   const sourcemap = process.env.CI ? true : (config.build?.sourcemap ?? true);
+-  
+-  // 返回合并后的配置
++
+   return {
+     ...config,
+     resolve: {
