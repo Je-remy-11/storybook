@@ -18,101 +18,50 @@ const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
 const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
 const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
 
+type StoryMapping = {
+  dir: string;
+  prefix?: string;
+  files?: string;
+};
+
+const storyMappings: StoryMapping[] = [
+  { dir: '../core/template/stories', prefix: 'core' },
+  { dir: '../core/src/manager', prefix: 'manager' },
+  { dir: '../core/src/preview-api', prefix: 'preview' },
+  { dir: '../core/src/preview', prefix: 'preview' },
+  { dir: '../core/src/shared', prefix: 'core/shared' },
+  { dir: '../core/src/components/brand', prefix: 'brand' },
+  { dir: '../core/src/components/components', prefix: 'components' },
+  { dir: '../core/src/component-testing/components', prefix: 'component-testing' },
+  { dir: '../core/src/controls/components', prefix: 'controls' },
+  { dir: '../core/src/highlight', prefix: 'highlight' },
+  { dir: '../core/src/actions/containers', prefix: 'actions' },
+  { dir: '../addons/a11y/src', prefix: 'addons/accessibility' },
+  { dir: '../addons/a11y/template/stories', prefix: 'addons/accessibility' },
+  { dir: '../addons/docs/template/stories', prefix: 'addons/docs' },
+  { dir: '../addons/docs/src', prefix: 'addons/docs' },
+  { dir: '../addons/links/template/stories', prefix: 'addons/links' },
+  { dir: '../addons/themes/template/stories', prefix: 'addons/themes' },
+  { dir: '../addons/onboarding/src', prefix: 'addons/onboarding' },
+  { dir: '../addons/onboarding/example-stories' },
+  { dir: '../addons/pseudo-states/src', prefix: 'addons/pseudo-states' },
+  { dir: '../addons/vitest/src/components', prefix: 'addons/vitest' },
+  { dir: '../addons/vitest/template/stories', prefix: 'addons/vitest' },
+  { dir: '../addons/vitest/src', prefix: 'addons/vitest', files: 'stories.tsx' },
+];
+
+const generatedStories = storyMappings.flatMap(({ dir, prefix, files }) => [
+  {
+    directory: dir,
+    ...(prefix && { titlePrefix: prefix }),
+    ...(files && { files }),
+  },
+]);
+
 const config = defineMain({
   stories: [
     './bench/*.stories.@(js|jsx|ts|tsx)',
-    {
-      directory: '../core/template/stories',
-      titlePrefix: 'core',
-    },
-    {
-      directory: '../core/src/manager',
-      titlePrefix: 'manager',
-    },
-    {
-      directory: '../core/src/preview-api',
-      titlePrefix: 'preview',
-    },
-    {
-      directory: '../core/src/preview',
-      titlePrefix: 'preview',
-    },
-    {
-      directory: '../core/src/shared',
-      titlePrefix: 'core/shared',
-    },
-    {
-      directory: '../core/src/components/brand',
-      titlePrefix: 'brand',
-    },
-    {
-      directory: '../core/src/components/components',
-      titlePrefix: 'components',
-    },
-    {
-      directory: '../core/src/component-testing/components',
-      titlePrefix: 'component-testing',
-    },
-    {
-      directory: '../core/src/controls/components',
-      titlePrefix: 'controls',
-    },
-    {
-      directory: '../core/src/highlight',
-      titlePrefix: 'highlight',
-    },
-    {
-      directory: '../core/src/actions/containers',
-      titlePrefix: 'actions',
-    },
-    {
-      directory: '../addons/a11y/src',
-      titlePrefix: 'addons/accessibility',
-    },
-    {
-      directory: '../addons/a11y/template/stories',
-      titlePrefix: 'addons/accessibility',
-    },
-    {
-      directory: '../addons/docs/template/stories',
-      titlePrefix: 'addons/docs',
-    },
-    {
-      directory: '../addons/docs/src',
-      titlePrefix: 'addons/docs',
-    },
-    {
-      directory: '../addons/links/template/stories',
-      titlePrefix: 'addons/links',
-    },
-    {
-      directory: '../addons/themes/template/stories',
-      titlePrefix: 'addons/themes',
-    },
-    {
-      directory: '../addons/onboarding/src',
-      titlePrefix: 'addons/onboarding',
-    },
-    {
-      directory: '../addons/onboarding/example-stories',
-    },
-    {
-      directory: '../addons/pseudo-states/src',
-      titlePrefix: 'addons/pseudo-states',
-    },
-    {
-      directory: '../addons/vitest/src/components',
-      titlePrefix: 'addons/vitest',
-    },
-    {
-      directory: '../addons/vitest/template/stories',
-      titlePrefix: 'addons/vitest',
-    },
-    {
-      directory: '../addons/vitest/src',
-      titlePrefix: 'addons/vitest',
-      files: 'stories.tsx',
-    },
+    ...generatedStories,
   ],
   addons: [
     '@storybook/addon-onboarding',
