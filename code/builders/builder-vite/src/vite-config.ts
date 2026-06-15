@@ -46,6 +46,24 @@ export async function commonConfig(
 
   const projectRoot = resolve(options.configDir, '..');
 
+  // Keep this list aligned with the sibling Watchpack ignore list used by
+  // `code/core/src/core-server/utils/watchConfig.ts` and
+  // `watch-story-specifiers.ts`. It suppresses full reloads on changes to
+  // tsconfig.json (which Vite's TypeScript plugin often marks as a
+  // dependency of every TS module), tooling caches (.nx, .turbo, .cache), and
+  // editor/project metadata.
+  const DEFAULT_WATCH_IGNORED = [
+    '**/.git/**',
+    '**/node_modules/**',
+    '**/.nx/**',
+    '**/.turbo/**',
+    '**/.cache/**',
+    '**/tsconfig.json',
+    '**/tsconfig.*.json',
+    '**/tsconfig-*.json',
+    '**/*.tsbuildinfo',
+  ];
+
   // I destructure away the `build` property from the user's config object
   // I do this because I can contain config that breaks storybook, such as we had in a lit project.
   // If the user needs to configure the `build` they need to do so in the viteFinal function in main.js.
@@ -58,6 +76,22 @@ export async function commonConfig(
       undefined,
       configLoader
     )) ?? {};
+
+  // Apply sensible defaults for `server.watch.ignored` only when the user
+  // has not already configured them — we never override explicit user
+  // configuration, only fill in the gap.
+  const userIgnored = (userConfig as any)?.server?.watch?.ignored;
+  const sbWatchIgnored = userIgnored ?? DEFAULT_WATCH_IGNORED;
+  const patchedUserConfig = {
+    ...userConfig,
+    server: {
+      ...((userConfig as any)?.server ?? {}),
+      watch: {
+        ...((userConfig as any)?.server?.watch ?? {}),
+        ignored: sbWatchIgnored,
+      },
+    },
+  };
 
   // Storybook's Vite config is assembled from self-contained plugins.
   // The config plugin handles base settings (root, cacheDir, resolve conditions, etc.),
@@ -79,7 +113,7 @@ export async function commonConfig(
     },
   };
 
-  const config: ViteConfig = mergeConfig(userConfig, sbConfig);
+  const config: ViteConfig = mergeConfig(patchedUserConfig, sbConfig);
 
   return config;
 }

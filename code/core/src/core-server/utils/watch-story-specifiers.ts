@@ -16,9 +16,33 @@ const isDirectory = (directory: Path) => {
   }
 };
 
+// Keep in sync with the sibling ignore list in './watchConfig.ts'. The two
+// watchers cover different slices of the project tree; both need to reject
+// tsconfig changes and tooling cache churn so that Storybook does not issue a
+// full reload in response.
+const COMMON_IGNORED = [
+  '**/.git',
+  '**/node_modules',
+  '**/.nx/cache/**',
+  '**/.nx',
+  '**/.turbo/**',
+  '**/.cache/**',
+  '**/tsconfig.json',
+  '**/tsconfig.*.json',
+  '**/tsconfig-*.json',
+];
+
+const isIgnoredBasename = (absolutePath: Path) => {
+  const name = basename(absolutePath).toLowerCase();
+  return (
+    name.startsWith('tsconfig') || name.endsWith('.tsbuildinfo') || name === 'nx.json'
+  );
+};
+
 // Takes an array of absolute paths to directories and synchronously returns
 // absolute paths to all existing files and directories nested within those
-// directories (including the passed parent directories).
+// directories (including the passed parent directories). Files that match our
+// ignore list are dropped up front so that Watchpack never watches them.
 function getNestedFilesAndDirectories(directories: Path[]) {
   const traversedDirectories = new Set<Path>();
   const files = new Set<Path>();
@@ -28,9 +52,19 @@ function getNestedFilesAndDirectories(directories: Path[]) {
     }
     readdirSync(directory, { withFileTypes: true }).forEach((ent: Dirent) => {
       if (ent.isDirectory()) {
+        // Skip well-known tooling-cache directories during the initial scan
+        // as well; this keeps the Watchpack watch-list smaller and avoids
+        // issues when tools create/delete transient directories under them.
+        const name = ent.name.toLowerCase();
+        if (name === '.git' || name === 'node_modules' || name === '.nx' || name === '.turbo') {
+          return;
+        }
         traverse(join(directory, ent.name));
       } else if (ent.isFile()) {
-        files.add(join(directory, ent.name));
+        const full = join(directory, ent.name);
+        if (!isIgnoredBasename(full)) {
+          files.add(full);
+        }
       }
     });
     traversedDirectories.add(directory);
@@ -55,7 +89,7 @@ export function watchStorySpecifiers(
   const wp = new Watchpack({
     // poll: true, // Slow!!! Enable only in special cases
     followSymlinks: false,
-    ignored: ['**/.git', '**/node_modules'],
+    ignored: COMMON_IGNORED,
   });
   wp.watch({ files, directories });
 

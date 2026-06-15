@@ -1,68 +1,258 @@
-import type { StorybookConfig } from '@storybook/react-vite';
-
-const config: StorybookConfig = {
-  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)', '../src/**/*.mdx'],
-  addons: [
-    '@storybook/addon-links',
-    '@storybook/addon-essentials',
-    '@storybook/addon-interactions',
-    '@storybook/addon-storysource',
-    '@storybook/addon-actions',
-  ],
-  framework: {
-    name: '@storybook/react-vite',
-    options: {},
-  },
-  docs: {
-    autodocs: 'tag',
-  },
-  
-  // 修复：使用 viteFinal 钩子正确配置 ignore 规则
-  async viteFinal(config) {
-    // 确保 server.watch 配置存在
-    config.server = config.server || {};
-    config.server.watch = config.server.watch || {};
-    
-    // 获取现有的忽略规则（如果有的话）
-    let existingIgnored: any[] = [];
-    if (Array.isArray(config.server.watch.ignored)) {
-      existingIgnored = [...config.server.watch.ignored];
-    } else if (config.server.watch.ignored) {
-      existingIgnored = [config.server.watch.ignored];
-    }
-    
-    // 设置新的忽略规则，包含多种匹配方式确保全面
-    config.server.watch.ignored = [
-      ...existingIgnored,
-      
-      // 忽略 NX 缓存
-      '**/.nx/cache/**',
-      
-      // 忽略所有 tsconfig 文件（多种写法以确保全面覆盖）
-      '**/tsconfig*.json',
-      '**/tsconfig-*.json',
-      '**/tsconfig/**.json',
-      
-      // 函数式忽略规则，作为后备
-      (path) => {
-        if (typeof path !== 'string') return false;
-        return (
-          path.includes('.nx/cache') || 
-          path.includes('tsconfig')
-        );
-      }
-    ];
-    
-    // 可选：如果需要防止 Vite 完全因为配置文件变化而重新加载
-    // config.server.hmr = config.server.hmr || {};
-    // config.server.hmr.clientPort = 443; // 示例设置
-    
-    console.log('✅ Vite watch ignore config updated:', {
-      ignored: config.server.watch.ignored
-    });
-    
-    return config;
-  },
-};
-
-export default config;
+diff --git a/code/builders/builder-vite/src/change-detection-adapter/index.ts b/code/builders/builder-vite/src/change-detection-adapter/index.ts
+index 0621ed7a685..c35bc0a6cba 100644
+--- a/code/builders/builder-vite/src/change-detection-adapter/index.ts
++++ b/code/builders/builder-vite/src/change-detection-adapter/index.ts
+@@ -8,6 +8,35 @@ import { logger } from 'storybook/internal/node-logger';
+ import { normalize } from 'pathe';
+ import type { ViteDevServer } from 'vite';
+ 
++// Matching the ignore list used by `code/core/src/core-server/utils/watchConfig.ts`
++// and `watch-story-specifiers.ts`. This is a belt-and-suspenders filter in
++// case a Vite plugin or the user's config slips a tsconfig*.json change past
++// `server.watch.ignored`.
++const IGNORED_BASENAMES = new Set([
++  'tsconfig.json',
++  'tsconfig.app.json',
++  'tsconfig.node.json',
++  'tsconfig.spec.json',
++  'tsconfig.base.json',
++  'tsconfig.build.json',
++  'tsconfig.stories.json',
++  'tsconfig.e2e.json',
++  'nx.json',
++  '.gitignore',
++]);
++
++const isIgnoredChange = (path: string) => {
++  const normalized = path.replace(/\\/g, '/').toLowerCase();
++  if (normalized.includes('/.nx/') || normalized.includes('/.turbo/')) {
++    return true;
++  }
++  const base = normalized.slice(normalized.lastIndexOf('/') + 1);
++  if (IGNORED_BASENAMES.has(base)) return true;
++  if (base.startsWith('tsconfig') && base.endsWith('.json')) return true;
++  if (base.endsWith('.tsbuildinfo')) return true;
++  return false;
++};
++
+ /**
+  * Vite implementation of {@link ChangeDetectionAdapter}.
+  *
+@@ -20,7 +49,7 @@ import type { ViteDevServer } from 'vite';
+ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeDetectionAdapter {
+   return {
+     /**
+-     * Snapshots the Vite resolver configuration (aliases, conditions, root) once at
++     * Snapshots the resolver configuration (aliases, conditions, root) once at
+      * adapter creation time. If `vite.config.ts` is modified while Storybook is
+      * running, this snapshot becomes stale and Storybook must be restarted to pick
+      * up the updated aliases.
+@@ -55,6 +84,9 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
+         if (!isForwardedEvent(eventName)) {
+           return;
+         }
++        if (isIgnoredChange(path)) {
++          return;
++        }
+         handler({ kind: eventName, path: normalize(path) });
+       };
+       server.watcher.on('all', onAll);
+diff --git a/code/builders/builder-vite/src/vite-config.ts b/code/builders/builder-vite/src/vite-config.ts
+index 8a67536987c..20ba81ab7d3 100644
+--- a/code/builders/builder-vite/src/vite-config.ts
++++ b/code/builders/builder-vite/src/vite-config.ts
+@@ -46,6 +46,24 @@ export async function commonConfig(
+ 
+   const projectRoot = resolve(options.configDir, '..');
+ 
++  // Keep this list aligned with the sibling Watchpack ignore list used by
++  // `code/core/src/core-server/utils/watchConfig.ts` and
++  // `watch-story-specifiers.ts`. It suppresses full reloads on changes to
++  // tsconfig.json (which Vite's TypeScript plugin often marks as a
++  // dependency of every TS module), tooling caches (.nx, .turbo, .cache), and
++  // editor/project metadata.
++  const DEFAULT_WATCH_IGNORED = [
++    '**/.git/**',
++    '**/node_modules/**',
++    '**/.nx/**',
++    '**/.turbo/**',
++    '**/.cache/**',
++    '**/tsconfig.json',
++    '**/tsconfig.*.json',
++    '**/tsconfig-*.json',
++    '**/*.tsbuildinfo',
++  ];
++
+   // I destructure away the `build` property from the user's config object
+   // I do this because I can contain config that breaks storybook, such as we had in a lit project.
+   // If the user needs to configure the `build` they need to do so in the viteFinal function in main.js.
+@@ -59,6 +77,22 @@ export async function commonConfig(
+       configLoader
+     )) ?? {};
+ 
++  // Apply sensible defaults for `server.watch.ignored` only when the user
++  // has not already configured them — we never override explicit user
++  // configuration, only fill in the gap.
++  const userIgnored = (userConfig as any)?.server?.watch?.ignored;
++  const sbWatchIgnored = userIgnored ?? DEFAULT_WATCH_IGNORED;
++  const patchedUserConfig = {
++    ...userConfig,
++    server: {
++      ...((userConfig as any)?.server ?? {}),
++      watch: {
++        ...((userConfig as any)?.server?.watch ?? {}),
++        ignored: sbWatchIgnored,
++      },
++    },
++  };
++
+   // Storybook's Vite config is assembled from self-contained plugins.
+   // The config plugin handles base settings (root, cacheDir, resolve conditions, etc.),
+   // while other plugins handle entry points, docgen, and runtime globals.
+@@ -79,7 +113,7 @@ export async function commonConfig(
+     },
+   };
+ 
+-  const config: ViteConfig = mergeConfig(userConfig, sbConfig);
++  const config: ViteConfig = mergeConfig(patchedUserConfig, sbConfig);
+ 
+   return config;
+ }
+diff --git a/code/core/src/core-server/utils/watch-story-specifiers.ts b/code/core/src/core-server/utils/watch-story-specifiers.ts
+index 94879375b84..70845256e38 100644
+--- a/code/core/src/core-server/utils/watch-story-specifiers.ts
++++ b/code/core/src/core-server/utils/watch-story-specifiers.ts
+@@ -16,9 +16,33 @@ const isDirectory = (directory: Path) => {
+   }
+ };
+ 
++// Keep in sync with the sibling ignore list in './watchConfig.ts'. The two
++// watchers cover different slices of the project tree; both need to reject
++// tsconfig changes and tooling cache churn so that Storybook does not issue a
++// full reload in response.
++const COMMON_IGNORED = [
++  '**/.git',
++  '**/node_modules',
++  '**/.nx/cache/**',
++  '**/.nx',
++  '**/.turbo/**',
++  '**/.cache/**',
++  '**/tsconfig.json',
++  '**/tsconfig.*.json',
++  '**/tsconfig-*.json',
++];
++
++const isIgnoredBasename = (absolutePath: Path) => {
++  const name = basename(absolutePath).toLowerCase();
++  return (
++    name.startsWith('tsconfig') || name.endsWith('.tsbuildinfo') || name === 'nx.json'
++  );
++};
++
+ // Takes an array of absolute paths to directories and synchronously returns
+ // absolute paths to all existing files and directories nested within those
+-// directories (including the passed parent directories).
++// directories (including the passed parent directories). Files that match our
++// ignore list are dropped up front so that Watchpack never watches them.
+ function getNestedFilesAndDirectories(directories: Path[]) {
+   const traversedDirectories = new Set<Path>();
+   const files = new Set<Path>();
+@@ -28,9 +52,19 @@ function getNestedFilesAndDirectories(directories: Path[]) {
+     }
+     readdirSync(directory, { withFileTypes: true }).forEach((ent: Dirent) => {
+       if (ent.isDirectory()) {
++        // Skip well-known tooling-cache directories during the initial scan
++        // as well; this keeps the Watchpack watch-list smaller and avoids
++        // issues when tools create/delete transient directories under them.
++        const name = ent.name.toLowerCase();
++        if (name === '.git' || name === 'node_modules' || name === '.nx' || name === '.turbo') {
++          return;
++        }
+         traverse(join(directory, ent.name));
+       } else if (ent.isFile()) {
+-        files.add(join(directory, ent.name));
++        const full = join(directory, ent.name);
++        if (!isIgnoredBasename(full)) {
++          files.add(full);
++        }
+       }
+     });
+     traversedDirectories.add(directory);
+@@ -55,7 +89,7 @@ export function watchStorySpecifiers(
+   const wp = new Watchpack({
+     // poll: true, // Slow!!! Enable only in special cases
+     followSymlinks: false,
+-    ignored: ['**/.git', '**/node_modules'],
++    ignored: COMMON_IGNORED,
+   });
+   wp.watch({ files, directories });
+ 
+diff --git a/code/core/src/core-server/utils/watchConfig.ts b/code/core/src/core-server/utils/watchConfig.ts
+index c3b993d04b1..d0bcbd7d248 100644
+--- a/code/core/src/core-server/utils/watchConfig.ts
++++ b/code/core/src/core-server/utils/watchConfig.ts
+@@ -1,8 +1,24 @@
++import { basename } from 'node:path';
++
+ import type { Path } from 'storybook/internal/types';
+ 
+ import Watchpack from 'watchpack';
+ 
+-// copied from './watch-story-specifiers.ts'
++// See also the sibling ignore list in './watch-story-specifiers.ts'.
++// Keep the two in sync so that tsconfig.json / tooling cache changes are
++// filtered out by both watchers.
++const COMMON_IGNORED = [
++  '**/.git',
++  '**/node_modules',
++  '**/.nx/cache/**',
++  '**/.nx',
++  '**/.turbo/**',
++  '**/.cache/**',
++  '**/tsconfig.json',
++  '**/tsconfig.*.json',
++  '**/tsconfig-*.json',
++];
++
+ /** Watch the `.storybook` dir for changes */
+ export function watchConfig(
+   configDir: Path,
+@@ -10,17 +26,37 @@ export function watchConfig(
+ ) {
+   const wp = new Watchpack({
+     followSymlinks: false,
+-    ignored: ['**/.git', '**/node_modules'],
++    ignored: COMMON_IGNORED,
+   });
+ 
+   wp.watch({
+     directories: [configDir],
+   });
++
++  // Additional "belt and suspenders" filter in case a glob pattern above
++  // does not match on certain platforms (watchpack forwards chokidar paths
++  // verbatim, so we also reject by basename here).
++  const isIgnoredBasename = (p: Path) => {
++    const name = basename(p).toLowerCase();
++    return (
++      name.startsWith('tsconfig') ||
++      name.endsWith('.tsbuildinfo') ||
++      name === 'nx.json' ||
++      name === '.gitignore'
++    );
++  };
++
+   wp.on('change', async (filePath: Path, mtime: Date, explanation: string) => {
++    if (isIgnoredBasename(filePath)) {
++      return;
++    }
+     const removed = !mtime;
+     await onInvalidate(filePath, removed);
+   });
+   wp.on('remove', async (filePath: Path, explanation: string) => {
++    if (isIgnoredBasename(filePath)) {
++      return;
++    }
+     await onInvalidate(filePath, true);
+   });
+ 

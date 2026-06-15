@@ -8,6 +8,35 @@ import { logger } from 'storybook/internal/node-logger';
 import { normalize } from 'pathe';
 import type { ViteDevServer } from 'vite';
 
+// Matching the ignore list used by `code/core/src/core-server/utils/watchConfig.ts`
+// and `watch-story-specifiers.ts`. This is a belt-and-suspenders filter in
+// case a Vite plugin or the user's config slips a tsconfig*.json change past
+// `server.watch.ignored`.
+const IGNORED_BASENAMES = new Set([
+  'tsconfig.json',
+  'tsconfig.app.json',
+  'tsconfig.node.json',
+  'tsconfig.spec.json',
+  'tsconfig.base.json',
+  'tsconfig.build.json',
+  'tsconfig.stories.json',
+  'tsconfig.e2e.json',
+  'nx.json',
+  '.gitignore',
+]);
+
+const isIgnoredChange = (path: string) => {
+  const normalized = path.replace(/\\/g, '/').toLowerCase();
+  if (normalized.includes('/.nx/') || normalized.includes('/.turbo/')) {
+    return true;
+  }
+  const base = normalized.slice(normalized.lastIndexOf('/') + 1);
+  if (IGNORED_BASENAMES.has(base)) return true;
+  if (base.startsWith('tsconfig') && base.endsWith('.json')) return true;
+  if (base.endsWith('.tsbuildinfo')) return true;
+  return false;
+};
+
 /**
  * Vite implementation of {@link ChangeDetectionAdapter}.
  *
@@ -20,7 +49,7 @@ import type { ViteDevServer } from 'vite';
 export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeDetectionAdapter {
   return {
     /**
-     * Snapshots the Vite resolver configuration (aliases, conditions, root) once at
+     * Snapshots the resolver configuration (aliases, conditions, root) once at
      * adapter creation time. If `vite.config.ts` is modified while Storybook is
      * running, this snapshot becomes stale and Storybook must be restarted to pick
      * up the updated aliases.
@@ -53,6 +82,9 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
 
       const onAll = (eventName: string, path: string) => {
         if (!isForwardedEvent(eventName)) {
+          return;
+        }
+        if (isIgnoredChange(path)) {
           return;
         }
         handler({ kind: eventName, path: normalize(path) });
