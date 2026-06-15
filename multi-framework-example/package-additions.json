@@ -1,0 +1,22 @@
+{
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build",
+    "storybook:vue": "storybook dev -c .storybook-vue -p 6007",
+    "storybook:vue:build": "storybook build -c .storybook-vue -o storybook-static/vue",
+    "storybook:all": "concurrently \"yarn storybook\" \"yarn storybook:vue\""
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "^8.0.0",
+    "@storybook/addon-interactions": "^8.0.0",
+    "@storybook/builder-vite": "^8.0.0",
+    "@storybook/react-vite": "^8.0.0",
+    "@storybook/vue3-vite": "^8.0.0",
+    "@storybook/vue3": "^8.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "concurrently": "^8.0.0",
+    "storybook": "^8.0.0",
+    "vite": "^5.0.0"
+  }
+}
