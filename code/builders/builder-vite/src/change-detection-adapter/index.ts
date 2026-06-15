@@ -8,6 +8,16 @@ import { logger } from 'storybook/internal/node-logger';
 import { normalize } from 'pathe';
 import type { ViteDevServer } from 'vite';
 
+const IGNORED_PATTERNS = [
+  /[/\\]\.nx[/\\]cache[/\\]/,
+  /[/\\]tsconfig\.json$/,
+  /[/\\]tsconfig\.[\w.]+\.json$/,
+];
+
+function isIgnoredForChangeDetection(filePath: string): boolean {
+  return IGNORED_PATTERNS.some((pattern) => pattern.test(filePath));
+}
+
 /**
  * Vite implementation of {@link ChangeDetectionAdapter}.
  *
@@ -53,6 +63,9 @@ export function createViteChangeDetectionAdapter(server: ViteDevServer): ChangeD
 
       const onAll = (eventName: string, path: string) => {
         if (!isForwardedEvent(eventName)) {
+          return;
+        }
+        if (isIgnoredForChangeDetection(path)) {
           return;
         }
         handler({ kind: eventName, path: normalize(path) });
