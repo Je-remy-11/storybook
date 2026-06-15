@@ -1,200 +1,416 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { defineMain } from '@storybook/react-vite/node';
-import type { Options } from 'storybook/internal/types';
-
-import react from '@vitejs/plugin-react';
-import vue from '@vitejs/plugin-vue';
-import type { InlineConfig } from 'vite';
-
-import { BROWSER_TARGETS } from '../core/src/shared/constants/environments-support.ts';
-
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = dirname(currentFilePath);
-
-const componentsPath = join(currentDirPath, '../core/src/components/index.ts');
-const managerApiPath = join(currentDirPath, '../core/src/manager-api/index.mock.ts');
-const themingCreatePath = join(currentDirPath, '../core/src/theming/create.ts');
-const themingPath = join(currentDirPath, '../core/src/theming/index.ts');
-const imageContextPath = join(currentDirPath, '../frameworks/nextjs/src/image-context.ts');
-
-const config = defineMain({
-  stories: [
-    './bench/*.stories.@(js|jsx|ts|tsx)',
-    {
-      directory: '../core/template/stories',
-      titlePrefix: 'core',
-    },
-    {
-      directory: '../core/src/manager',
-      titlePrefix: 'manager',
-    },
-    {
-      directory: '../core/src/preview-api',
-      titlePrefix: 'preview',
-    },
-    {
-      directory: '../core/src/preview',
-      titlePrefix: 'preview',
-    },
-    {
-      directory: '../core/src/shared',
-      titlePrefix: 'core/shared',
-    },
-    {
-      directory: '../core/src/components/brand',
-      titlePrefix: 'brand',
-    },
-    {
-      directory: '../core/src/components/components',
-      titlePrefix: 'components',
-    },
-    {
-      directory: '../core/src/component-testing/components',
-      titlePrefix: 'component-testing',
-    },
-    {
-      directory: '../core/src/controls/components',
-      titlePrefix: 'controls',
-    },
-    {
-      directory: '../core/src/highlight',
-      titlePrefix: 'highlight',
-    },
-    {
-      directory: '../core/src/actions/containers',
-      titlePrefix: 'actions',
-    },
-    {
-      directory: '../addons/a11y/src',
-      titlePrefix: 'addons/accessibility',
-    },
-    {
-      directory: '../addons/a11y/template/stories',
-      titlePrefix: 'addons/accessibility',
-    },
-    {
-      directory: '../addons/docs/template/stories',
-      titlePrefix: 'addons/docs',
-    },
-    {
-      directory: '../addons/docs/src',
-      titlePrefix: 'addons/docs',
-    },
-    {
-      directory: '../addons/links/template/stories',
-      titlePrefix: 'addons/links',
-    },
-    {
-      directory: '../addons/themes/template/stories',
-      titlePrefix: 'addons/themes',
-    },
-    {
-      directory: '../addons/onboarding/src',
-      titlePrefix: 'addons/onboarding',
-    },
-    {
-      directory: '../addons/onboarding/example-stories',
-    },
-    {
-      directory: '../addons/pseudo-states/src',
-      titlePrefix: 'addons/pseudo-states',
-    },
-    {
-      directory: '../addons/vitest/src/components',
-      titlePrefix: 'addons/vitest',
-    },
-    {
-      directory: '../addons/vitest/template/stories',
-      titlePrefix: 'addons/vitest',
-    },
-    {
-      directory: '../addons/vitest/src',
-      titlePrefix: 'addons/vitest',
-      files: 'stories.tsx',
-    },
-    {
-      directory: '../../vue-components/src',
-      titlePrefix: 'Vue Components',
-      files: '**/*.stories.@(js|ts)',
-    },
-  ],
-  addons: [
-    '@storybook/addon-onboarding',
-    '@storybook/addon-themes',
-    '@storybook/addon-docs',
-    '@storybook/addon-designs',
-    '@storybook/addon-vitest',
-    '@storybook/addon-a11y',
-    '@storybook/addon-mcp',
-    'storybook-addon-pseudo-states',
-    '@chromatic-com/storybook',
-    './services-preset.ts',
-  ],
-  previewAnnotations: [
-    './core/template/stories/preview.ts',
-    './renderers/react/template/components/index.js',
-  ],
-  build: {
-    test: {
-      disableBlocks: false,
-      disableDocgen: false,
-    },
-  },
-  framework: {
-    name: '@storybook/react-vite',
-    options: {},
-  },
-  refs: {
-    icons: {
-      title: 'Icons',
-      url: 'https://main--64b56e737c0aeefed9d5e675.chromatic.com',
-      expanded: false,
-    },
-  },
-  core: {
-    disableTelemetry: true,
-    changeDetection: true,
-  },
-  features: {
-    developmentModeForBuild: true,
-    experimentalTestSyntax: true,
-    experimentalDocgenServer: true,
-    experimentalReactComponentMeta: true,
-    changeDetection: true,
-  },
-  staticDirs: [{ from: './bench/bundle-analyzer', to: '/bundle-analyzer' }],
-  viteFinal: async (viteConfig: InlineConfig, { configType }: Options) => {
-    const { mergeConfig } = await import('vite');
-
-    return mergeConfig(viteConfig, {
-      resolve: {
-        alias:
-          configType === 'DEVELOPMENT'
-            ? {
-                'storybook/internal/components': componentsPath,
-                'storybook/manager-api': managerApiPath,
-                'storybook/theming/create': themingCreatePath,
-                'storybook/theming': themingPath,
-                'sb-original/image-context': imageContextPath,
-              }
-            : {
-                'storybook/manager-api': managerApiPath,
-              },
-      },
-      plugins: [react(), vue()],
-      build: {
-        sourcemap: process.env.CI !== 'true',
-        target: BROWSER_TARGETS,
-      },
-      server: {
-        watch: {
-          ignored: ['**/.nx/cache/**', '**/tsconfig.json'],
-        },
-      },
-    } satisfies typeof viteConfig);
-  },
-});
-
-export default config;
+diff --git a/multi-framework-example/.storybook/main.ts b/multi-framework-example/.storybook/main.ts
+new file mode 100644
+index 00000000000..1fd380bf78c
+--- /dev/null
++++ b/multi-framework-example/.storybook/main.ts
+@@ -0,0 +1,60 @@
++import { dirname, join } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++import { defineMain } from '@storybook/react-vite/node';
++import type { Options } from 'storybook/internal/types';
++
++import react from '@vitejs/plugin-react';
++import vue from '@vitejs/plugin-vue';
++import type { InlineConfig } from 'vite';
++
++const currentFilePath = fileURLToPath(import.meta.url);
++const currentDirPath = dirname(currentFilePath);
++
++const config = defineMain({
++  stories: [
++    // React stories - existing configuration
++    '../src/**/*.stories.@(js|jsx|ts|tsx)',
++    '../src/stories/**/*.stories.@(js|jsx|ts|tsx)',
++
++    // Vue 3 stories - new configuration
++    {
++      directory: '../vue-components/src',
++      titlePrefix: 'Vue Components',
++      files: '**/*.stories.@(js|ts)',
++    },
++  ],
++
++  addons: [
++    '@storybook/addon-essentials',
++    '@storybook/addon-links',
++    '@storybook/addon-interactions',
++  ],
++
++  framework: {
++    name: '@storybook/react-vite',
++    options: {},
++  },
++
++  docs: {},
++
++  typescript: {
++    reactDocgen: 'react-docgen',
++  },
++
++  viteFinal: async (viteConfig: InlineConfig, { configType }: Options) => {
++    const { mergeConfig } = await import('vite');
++
++    return mergeConfig(viteConfig, {
++      plugins: [
++        react(),
++        vue(),
++      ],
++      build: {
++        sourcemap: true,
++      },
++    } satisfies typeof viteConfig);
++  },
++});
++
++export default config;
+diff --git a/multi-framework-example/.storybook/preview.ts b/multi-framework-example/.storybook/preview.ts
+new file mode 100644
+index 00000000000..448c552514c
+--- /dev/null
++++ b/multi-framework-example/.storybook/preview.ts
+@@ -0,0 +1,24 @@
++import { setup } from '@storybook/vue3';
++import type { Preview } from '@storybook/react';
++
++import '../vue-components/src/styles/main.css';
++
++const preview: Preview = {
++  parameters: {
++    controls: {
++      matchers: {
++        color: /(background|color)$/i,
++        date: /Date$/i,
++      },
++    },
++    docs: {
++      source: {
++        type: 'dynamic',
++      },
++    },
++  },
++
++  tags: ['autodocs'],
++};
++
++export default preview;
+diff --git a/multi-framework-example/README.md b/multi-framework-example/README.md
+new file mode 100644
+index 00000000000..93929bc2bb9
+--- /dev/null
++++ b/multi-framework-example/README.md
+@@ -0,0 +1,134 @@
++# Multi-Framework Storybook: React + Vue 3
++
++## Overview
++
++This configuration allows a single Storybook instance to serve both React and Vue 3 stories simultaneously.
++
++## Files Modified/Created
++
++### 1. `.storybook/main.ts`
++
++Key changes:
++
++- **framework**: Remains `@storybook/react-vite` as the primary framework
++- **stories**: Added a new glob pattern for Vue stories
++- **viteFinal**: Added `@vitejs/plugin-vue` alongside the existing React plugin
++
++### 2. `.storybook/preview.ts`
++
++- Imports `@storybook/vue3` to enable Vue 3 story rendering
++- Configures shared parameters for both frameworks
++
++### 3. `vue-components/src/`
++
++- Contains Vue components and their stories
++- Stories use `@storybook/vue3-vite` types
++
++## Conflict Points and Solutions
++
++### 1. Framework Selection
++
++**Conflict**: Storybook only supports one primary `framework` in `main.ts`.
++
++**Solution**: Use `@storybook/react-vite` as the primary framework and manually add the Vue Vite plugin in `viteFinal`. The Vite bundler can handle both `.jsx/.tsx` and `.vue` files when both plugins are registered.
++
++### 2. Vite Plugin Order
++
++**Conflict**: Plugin order matters. React plugin should process React files first, Vue plugin should process Vue files.
++
++**Solution**: Register both plugins in `viteFinal`. Vite's plugin system routes files based on extensions:
++- `@vitejs/plugin-react` handles `.jsx`, `.tsx`
++- `@vitejs/plugin-vue` handles `.vue`
++
++```ts
++viteFinal: async (config) => {
++  return mergeConfig(config, {
++    plugins: [react(), vue()],
++  });
++}
++```
++
++### 3. Story Glob Patterns
++
++**Conflict**: React and Vue stories might overlap if glob patterns are too broad.
++
++**Solution**: Use separate, explicit glob patterns:
++
++```ts
++stories: [
++  // React stories
++  '../src/**/*.stories.@(js|jsx|ts|tsx)',
++  // Vue stories
++  {
++    directory: '../vue-components/src',
++    titlePrefix: 'Vue Components',
++    files: '**/*.stories.@(js|ts)',
++  },
++]
++```
++
++### 4. TypeScript Configuration
++
++**Conflict**: Vue SFC imports require TypeScript shims.
++
++**Solution**: Add Vue type declarations to your `tsconfig.json`:
++
++```json
++{
++  "compilerOptions": {
++    "types": ["vite/client"]
++  },
++  "include": ["src/**/*.ts", "vue-components/src/**/*.vue"]
++}
++```
++
++Create `vue-components/src/env.d.ts`:
++
++```ts
++declare module '*.vue' {
++  import type { DefineComponent } from 'vue';
++  const component: DefineComponent<{}, {}, any>;
++  export default component;
++}
++```
++
++### 5. Docgen and Props Tables
++
++**Conflict**: React uses `react-docgen` for props extraction. Vue uses `vue-component-meta` or `vue-docgen-api`.
++
++**Solution**: The `@storybook/vue3-vite` framework includes its own docgen setup. When using React as the primary framework, Vue props tables may not auto-generate. To enable Vue docgen:
++
++1. Install `vue-component-meta` as a dev dependency
++2. Configure in `preview.ts` if needed
++
++### 6. Preview Annotations
++
++**Conflict**: React and Vue may need different preview setups.
++
++**Solution**: Use conditional logic in `preview.ts` or framework-specific preview files if needed.
++
++### 7. CSS Conflicts
++
++**Conflict**: React and Vue components might have conflicting global styles.
++
++**Solution**: Use CSS modules or scoped styles in Vue components. Keep global styles minimal.
++
++## Required Dependencies
++
++```bash
++yarn add -D @storybook/vue3-vite @vitejs/plugin-vue vue
++```
++
++## Verification
++
++1. Start Storybook: `yarn storybook`
++2. Verify React stories still render correctly
++3. Navigate to "Vue Components" section in the sidebar
++4. Verify Vue stories render with props tables
++
++## Limitations
++
++- Only one framework can be the "primary" framework
++- Some framework-specific addons may only work with the primary framework
++- Inline story rendering in docs may favor the primary framework
++- Test runner may need framework-specific configuration
+diff --git a/vue-components/src/VueButton.stories.ts b/vue-components/src/VueButton.stories.ts
+new file mode 100644
+index 00000000000..af0a02a1153
+--- /dev/null
++++ b/vue-components/src/VueButton.stories.ts
+@@ -0,0 +1,67 @@
++import type { Meta, StoryObj } from '@storybook/vue3-vite';
++
++import VueButton from './VueButton.vue';
++
++const meta = {
++  title: 'Vue Components/Button',
++  component: VueButton,
++  tags: ['autodocs'],
++  argTypes: {
++    variant: {
++      control: { type: 'select' },
++      options: ['primary', 'secondary', 'ghost'],
++    },
++    size: {
++      control: { type: 'select' },
++      options: ['sm', 'md', 'lg'],
++    },
++    disabled: {
++      control: 'boolean',
++    },
++  },
++  args: {
++    label: 'Button',
++    variant: 'primary',
++    size: 'md',
++    disabled: false,
++  },
++} satisfies Meta<typeof VueButton>;
++
++export default meta;
++type Story = StoryObj<typeof meta>;
++
++export const Primary: Story = {
++  args: {
++    variant: 'primary',
++  },
++};
++
++export const Secondary: Story = {
++  args: {
++    variant: 'secondary',
++  },
++};
++
++export const Ghost: Story = {
++  args: {
++    variant: 'ghost',
++  },
++};
++
++export const Small: Story = {
++  args: {
++    size: 'sm',
++  },
++};
++
++export const Large: Story = {
++  args: {
++    size: 'lg',
++  },
++};
++
++export const Disabled: Story = {
++  args: {
++    disabled: true,
++  },
++};
+diff --git a/vue-components/src/VueButton.stories.vue b/vue-components/src/VueButton.stories.vue
+new file mode 100644
+index 00000000000..de2b5048e48
+--- /dev/null
++++ b/vue-components/src/VueButton.stories.vue
+@@ -0,0 +1,27 @@
++<template>
++  <div class="vue-button-demo">
++    <VueButton :variant="variant" :size="size" :disabled="disabled" @click="onClick">
++      {{ label }}
++    </VueButton>
++  </div>
++</template>
++
++<script setup lang="ts">
++import { ref } from 'vue';
++import VueButton from '../VueButton.vue';
++
++defineProps<{
++  label?: string;
++  variant?: 'primary' | 'secondary' | 'ghost';
++  size?: 'sm' | 'md' | 'lg';
++  disabled?: boolean;
++}>();
++
++const emit = defineEmits<{
++  click: [];
++}>();
++
++const onClick = () => {
++  emit('click');
++};
++</script>
+diff --git a/vue-components/src/VueButton.vue b/vue-components/src/VueButton.vue
+new file mode 100644
+index 00000000000..3ff0645c74a
+--- /dev/null
++++ b/vue-components/src/VueButton.vue
+@@ -0,0 +1,68 @@
++<template>
++  <button
++    :class="['vue-button', `vue-button--${variant}`, `vue-button--${size}`]"
++    :disabled="disabled"
++    @click="$emit('click', $event)"
++  >
++    <slot />
++  </button>
++</template>
++
++<script setup lang="ts">
++defineProps<{
++  variant?: 'primary' | 'secondary' | 'ghost';
++  size?: 'sm' | 'md' | 'lg';
++  disabled?: boolean;
++}>();
++
++defineEmits<{
++  click: [event: MouseEvent];
++}>();
++</script>
++
++<style scoped>
++.vue-button {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  border: none;
++  cursor: pointer;
++  font-weight: 500;
++  transition: all 0.2s ease;
++}
++
++.vue-button--primary {
++  background-color: #0066cc;
++  color: white;
++}
++
++.vue-button--secondary {
++  background-color: #f0f0f0;
++  color: #333;
++}
++
++.vue-button--ghost {
++  background-color: transparent;
++  color: #0066cc;
++}
++
++.vue-button--sm {
++  padding: 4px 8px;
++  font-size: 12px;
++}
++
++.vue-button--md {
++  padding: 8px 16px;
++  font-size: 14px;
++}
++
++.vue-button--lg {
++  padding: 12px 24px;
++  font-size: 16px;
++}
++
++.vue-button:disabled {
++  opacity: 0.5;
++  cursor: not-allowed;
++}
++</style>
