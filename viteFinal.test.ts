@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // 假设我们正在测试某个框架或 builder 中的 viteFinal 函数。
-// 此处提供了一个符合题意的 viteFinal 实现作为被测函数（实际中你会从 preset.ts 导入）。
+// 此处提供了一个符合题意的 viteFinal 实现作为被测函数（实际中你会从对应的模块导入）。
 const viteFinal = async (config: any, options: { configType: 'DEVELOPMENT' | 'PRODUCTION' }) => {
   const isDev = options.configType === 'DEVELOPMENT';
   
@@ -79,6 +79,15 @@ describe('viteFinal', () => {
 
       // 断言根据 process.env.CI 正确设置了 sourcemap
       expect(config.build.sourcemap).toBe(false);
+    });
+
+    it('如果在非 CI 环境中，sourcemap 应该设置为 true', async () => {
+      // 模拟非 CI 环境
+      delete process.env.CI;
+
+      const config = await viteFinal({}, { configType: 'PRODUCTION' });
+
+      expect(config.build.sourcemap).toBe(true);
     });
   });
 });
