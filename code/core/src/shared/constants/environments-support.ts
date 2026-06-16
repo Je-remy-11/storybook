@@ -1,6 +1,8 @@
-import type { BuildOptions } from 'esbuild';
+import type { BuildOptions, Supported } from 'esbuild';
 
-const BROWSER_TARGET_REGEX = /^(chrome|edge|firefox|safari|ios|opera|ie|node|es\d+)\d+$/;
+export type BrowserTarget = string & { readonly __brand: unique symbol };
+
+const BROWSER_TARGET_REGEX = /^(chrome|edge|firefox|safari|ios|opera|ie|node|es\d+)\d+(\.\d+)*$/;
 
 export const BROWSER_TARGETS_ENV_KEY = 'BROWSER_TARGETS_OVERRIDE';
 
@@ -13,7 +15,23 @@ export const BROWSER_TARGETS: BuildOptions['target'] = [
   'opera117',
 ];
 
-export function isValidBrowserTarget(target: string): boolean {
+export const NODE_TARGET: BuildOptions['target'] = ['node22'];
+
+export const SUPPORTED_FEATURES: Supported = {
+  'arrow': true,
+  'const-and-let': true,
+  'default-argument': true,
+  'destructuring': true,
+  'for-of': true,
+  'generator': true,
+  'optional-catch-binding': true,
+  'optional-chain': true,
+  'rest-argument': true,
+  'template-literal': true,
+  'unicode-es2015': true,
+};
+
+export function isValidBrowserTarget(target: string): target is BrowserTarget {
   return BROWSER_TARGET_REGEX.test(target);
 }
 

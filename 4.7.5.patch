@@ -1,54 +1,198 @@
-import type { BuildOptions } from 'esbuild';
-
-const BROWSER_TARGET_REGEX = /^(chrome|edge|firefox|safari|ios|opera|ie|node|es\d+)\d+$/;
-
-export const BROWSER_TARGETS_ENV_KEY = 'BROWSER_TARGETS_OVERRIDE';
-
-export const BROWSER_TARGETS: BuildOptions['target'] = [
-  'chrome131',
-  'edge134',
-  'firefox136',
-  'safari18.3',
-  'ios18.3',
-  'opera117',
-];
-
-export function isValidBrowserTarget(target: string): boolean {
-  return BROWSER_TARGET_REGEX.test(target);
-}
-
-export function parseBrowserTargets(input: string): BuildOptions['target'] {
-  const targets = input
-    .split(',')
-    .map((t) => t.trim())
-    .filter(Boolean);
-
-  const invalid = targets.filter((t) => !isValidBrowserTarget(t));
-  if (invalid.length > 0) {
-    throw new Error(
-      `Invalid browser targets in ${BROWSER_TARGETS_ENV_KEY}: ${invalid.join(', ')}. ` +
-        `Expected format: chrome100,edge100,firefox100,safari18,ios18,opera100`
-    );
-  }
-
-  return targets;
-}
-
-export function getBrowserTargets(): BuildOptions['target'] {
-  const override = process.env[BROWSER_TARGETS_ENV_KEY];
-  if (!override) {
-    return BROWSER_TARGETS;
-  }
-
-  try {
-    const parsed = parseBrowserTargets(override);
-    return parsed;
-  } catch (err) {
-    if (err instanceof Error) {
-      console.warn(`${err.message} Falling back to default BROWSER_TARGETS.`);
-    }
-    return BROWSER_TARGETS;
-  }
-}
-
-
+diff --git a/code/builders/builder-vite/src/vite-config.ts b/code/builders/builder-vite/src/vite-config.ts
+index 8a67536987c..031015f075d 100644
+--- a/code/builders/builder-vite/src/vite-config.ts
++++ b/code/builders/builder-vite/src/vite-config.ts
+@@ -1,6 +1,10 @@
+ import { resolve } from 'node:path';
+ 
+-import { getBuilderOptions, resolvePathInStorybookCache } from 'storybook/internal/common';
++import {
++  getBuilderOptions,
++  getBrowserTargets,
++  resolvePathInStorybookCache,
++} from 'storybook/internal/common';
+ import type { Options } from 'storybook/internal/types';
+ 
+ import type {
+@@ -73,9 +77,8 @@ export async function commonConfig(
+     ...(options.cacheKey
+       ? { cacheDir: resolvePathInStorybookCache('sb-vite', options.cacheKey) }
+       : {}),
+-    // Pass build.target option from user's vite config
+     build: {
+-      target: buildProperty?.target,
++      target: buildProperty?.target ?? getBrowserTargets(),
+     },
+   };
+ 
+diff --git a/code/core/src/common/index.ts b/code/core/src/common/index.ts
+index 482406e899f..01220e5607c 100644
+--- a/code/core/src/common/index.ts
++++ b/code/core/src/common/index.ts
+@@ -56,3 +56,13 @@ export { versions };
+ 
+ export { createFileSystemCache, FileSystemCache } from './utils/file-cache.ts';
+ export { registerService } from '../shared/open-service/server.ts';
++export {
++  BROWSER_TARGETS,
++  BROWSER_TARGETS_ENV_KEY,
++  getBrowserTargets,
++  isValidBrowserTarget,
++  NODE_TARGET,
++  parseBrowserTargets,
++  SUPPORTED_FEATURES,
++} from '../shared/constants/environments-support.ts';
++export type { BrowserTarget } from '../shared/constants/environments-support.ts';
+diff --git a/code/core/src/shared/constants/environments-support.test.ts b/code/core/src/shared/constants/environments-support.test.ts
+new file mode 100644
+index 00000000000..766de33eb19
+--- /dev/null
++++ b/code/core/src/shared/constants/environments-support.test.ts
+@@ -0,0 +1,107 @@
++import { afterEach, describe, expect, it, vi } from 'vitest';
++
++import {
++  BROWSER_TARGETS,
++  BROWSER_TARGETS_ENV_KEY,
++  getBrowserTargets,
++  isValidBrowserTarget,
++  parseBrowserTargets,
++} from './environments-support.ts';
++
++describe('environments-support', () => {
++  afterEach(() => {
++    delete process.env[BROWSER_TARGETS_ENV_KEY];
++  });
++
++  describe('isValidBrowserTarget', () => {
++    it.each([
++      ['chrome100', true],
++      ['edge134', true],
++      ['firefox136', true],
++      ['safari18', true],
++      ['safari18.3', true],
++      ['ios18.3', true],
++      ['opera117', true],
++      ['ie11', true],
++      ['node22', true],
++      ['es2020', true],
++      ['esnext', false],
++      ['', false],
++      ['chrome', false],
++      ['100', false],
++      ['chrome_100', false],
++    ])('returns %s for "%s"', (input, expected) => {
++      expect(isValidBrowserTarget(input)).toBe(expected);
++    });
++
++    it('acts as a type guard', () => {
++      const value: string = 'chrome100';
++      if (isValidBrowserTarget(value)) {
++        const _typed: string = value;
++        expect(_typed).toBe(value);
++      }
++    });
++  });
++
++  describe('parseBrowserTargets', () => {
++    it('parses a comma-separated list of valid targets', () => {
++      expect(parseBrowserTargets('chrome100,edge100,firefox100')).toEqual([
++        'chrome100',
++        'edge100',
++        'firefox100',
++      ]);
++    });
++
++    it('trims whitespace around targets', () => {
++      expect(parseBrowserTargets(' chrome100 , edge100 ')).toEqual([
++        'chrome100',
++        'edge100',
++      ]);
++    });
++
++    it('ignores empty segments from trailing commas', () => {
++      expect(parseBrowserTargets('chrome100,,edge100,')).toEqual([
++        'chrome100',
++        'edge100',
++      ]);
++    });
++
++    it('throws on invalid targets', () => {
++      expect(() => parseBrowserTargets('chrome100,invalid')).toThrow(
++        `Invalid browser targets in ${BROWSER_TARGETS_ENV_KEY}: invalid`
++      );
++    });
++
++    it('lists all invalid targets in the error message', () => {
++      expect(() => parseBrowserTargets('chrome100,bad1,bad2')).toThrow(
++        `Invalid browser targets in ${BROWSER_TARGETS_ENV_KEY}: bad1, bad2`
++      );
++    });
++  });
++
++  describe('getBrowserTargets', () => {
++    it('returns BROWSER_TARGETS when no env override is set', () => {
++      expect(getBrowserTargets()).toBe(BROWSER_TARGETS);
++    });
++
++    it('returns parsed override when BROWSER_TARGETS_OVERRIDE is set', () => {
++      process.env[BROWSER_TARGETS_ENV_KEY] = 'chrome100,edge100';
++      expect(getBrowserTargets()).toEqual(['chrome100', 'edge100']);
++    });
++
++    it('falls back to BROWSER_TARGETS when override contains invalid values', () => {
++      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
++      process.env[BROWSER_TARGETS_ENV_KEY] = 'invalid';
++      expect(getBrowserTargets()).toBe(BROWSER_TARGETS);
++      expect(warnSpy).toHaveBeenCalledWith(
++        expect.stringContaining('Invalid browser targets')
++      );
++      warnSpy.mockRestore();
++    });
++
++    it('handles single target override', () => {
++      process.env[BROWSER_TARGETS_ENV_KEY] = 'chrome120';
++      expect(getBrowserTargets()).toEqual(['chrome120']);
++    });
++  });
++});
+diff --git a/code/core/src/shared/constants/environments-support.ts b/code/core/src/shared/constants/environments-support.ts
+index 2cc0bf2a765..061478a8314 100644
+--- a/code/core/src/shared/constants/environments-support.ts
++++ b/code/core/src/shared/constants/environments-support.ts
+@@ -1,6 +1,8 @@
+-import type { BuildOptions } from 'esbuild';
++import type { BuildOptions, Supported } from 'esbuild';
+ 
+-const BROWSER_TARGET_REGEX = /^(chrome|edge|firefox|safari|ios|opera|ie|node|es\d+)\d+$/;
++export type BrowserTarget = string & { readonly __brand: unique symbol };
++
++const BROWSER_TARGET_REGEX = /^(chrome|edge|firefox|safari|ios|opera|ie|node|es\d+)\d+(\.\d+)*$/;
+ 
+ export const BROWSER_TARGETS_ENV_KEY = 'BROWSER_TARGETS_OVERRIDE';
+ 
+@@ -13,7 +15,23 @@ export const BROWSER_TARGETS: BuildOptions['target'] = [
+   'opera117',
+ ];
+ 
+-export function isValidBrowserTarget(target: string): boolean {
++export const NODE_TARGET: BuildOptions['target'] = ['node22'];
++
++export const SUPPORTED_FEATURES: Supported = {
++  'arrow': true,
++  'const-and-let': true,
++  'default-argument': true,
++  'destructuring': true,
++  'for-of': true,
++  'generator': true,
++  'optional-catch-binding': true,
++  'optional-chain': true,
++  'rest-argument': true,
++  'template-literal': true,
++  'unicode-es2015': true,
++};
++
++export function isValidBrowserTarget(target: string): target is BrowserTarget {
+   return BROWSER_TARGET_REGEX.test(target);
+ }
+ 

@@ -56,3 +56,13 @@ export { versions };
 
 export { createFileSystemCache, FileSystemCache } from './utils/file-cache.ts';
 export { registerService } from '../shared/open-service/server.ts';
+export {
+  BROWSER_TARGETS,
+  BROWSER_TARGETS_ENV_KEY,
+  getBrowserTargets,
+  isValidBrowserTarget,
+  NODE_TARGET,
+  parseBrowserTargets,
+  SUPPORTED_FEATURES,
+} from '../shared/constants/environments-support.ts';
+export type { BrowserTarget } from '../shared/constants/environments-support.ts';
